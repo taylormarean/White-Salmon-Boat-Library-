@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Guide — White Salmon Boat Library</title>
+<meta name="description" content="How the White Salmon Boat Library website, member app, and staff dashboard work — for members, librarians, and admins.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2230%22 fill=%22%230B3B40%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 text-anchor=%22middle%22>📖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #10282B; --deep: #0B3B40; --teal: #0E7C86;
+    --foam: #F6F1E5; --sand: #EDE4CE; --punch: #FF5A1F; --sun: #F2B90F;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Archivo', system-ui, sans-serif; background: var(--foam); color: var(--ink); line-height: 1.65; }
+  .display { font-family: 'Archivo Black', 'Archivo', system-ui, sans-serif; font-weight: 900; text-transform: uppercase; line-height: 0.95; letter-spacing: -0.02em; }
+
+  header.hero { background: var(--deep); color: var(--foam); padding: 60px 24px 50px; border-bottom: 4px solid var(--ink); }
+  .hero-wrap { max-width: 880px; margin: 0 auto; }
+  .hero .eyebrow { color: var(--sun); font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: 0.12em; margin-bottom: 12px; }
+  .hero h1 { font-size: clamp(34px, 6vw, 58px); }
+  .hero p { margin-top: 16px; font-size: 17px; max-width: 620px; opacity: 0.92; }
+
+  .layout { max-width: 880px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  nav.toc {
+    background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 22px 26px;
+    box-shadow: 6px 6px 0 var(--ink); margin-bottom: 48px;
+  }
+  nav.toc .t { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: 0.1em; color: var(--punch); margin-bottom: 10px; }
+  nav.toc ol { list-style: none; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 5px 0; break-inside: avoid; }
+  nav.toc a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; }
+  nav.toc a:hover { color: var(--teal); }
+  nav.toc .n { color: var(--punch); font-family: 'Archivo Black', sans-serif; font-size: 13px; margin-right: 8px; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+
+  section { margin-bottom: 56px; }
+  h2 { font-family: 'Archivo Black', sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.01em; line-height: 1.05; margin-bottom: 8px; scroll-margin-top: 24px; }
+  h2 .num { color: var(--punch); margin-right: 10px; }
+  .rule { height: 4px; width: 64px; background: var(--teal); border-radius: 2px; margin: 10px 0 22px; }
+  h3 { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 17px; margin: 28px 0 10px; letter-spacing: 0.01em; }
+  p { margin-bottom: 12px; font-size: 15.5px; max-width: 72ch; }
+  ul, ol.steps { margin: 0 0 14px 22px; font-size: 15.5px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 800; }
+  .hl { background: var(--sun); padding: 0 5px; border-radius: 4px; box-decoration-break: clone; }
+
+  .callout {
+    background: #fff; border: 3px solid var(--ink); border-left-width: 10px; border-radius: 14px;
+    padding: 16px 20px; margin: 18px 0; font-size: 15px; max-width: none;
+  }
+  .callout.key { border-left-color: var(--punch); }
+  .callout.safe { border-left-color: var(--teal); }
+  .callout .cap { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .callout.key .cap { color: var(--punch); } .callout.safe .cap { color: var(--teal); }
+
+  .tablewrap { overflow-x: auto; margin: 16px 0 8px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; font-size: 14.5px; }
+  th { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.07em; text-align: left; background: var(--sand); padding: 10px 14px; border-bottom: 3px solid var(--ink); }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(16,40,43,0.15); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  code { background: var(--sand); border-radius: 5px; padding: 1px 7px; font-weight: 700; font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; }
+
+  .stepgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+  .stepcard { background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 20px; box-shadow: 5px 5px 0 var(--ink); position: relative; }
+  .stepcard .n { position: absolute; top: -16px; left: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--punch); color: #fff; border: 3px solid var(--ink); display: grid; place-items: center; font-family: 'Archivo Black', sans-serif; font-size: 15px; }
+  .stepcard h4 { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 14.5px; margin: 8px 0 8px; }
+  .stepcard p { font-size: 14px; margin: 0; }
+
+  footer { background: var(--ink); color: var(--foam); padding: 36px 24px; text-align: center; font-size: 13.5px; }
+  footer .display { font-size: 20px; margin-bottom: 6px; color: var(--sun); }
+
+  @media print {
+    body { background: #fff; }
+    .stepcard, nav.toc, .callout, table { box-shadow: none; }
+    header.hero { padding: 30px 24px; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-wrap">
+    <div class="eyebrow">White Salmon Boat Library</div>
+    <h1 class="display">User guide:<br>how it all works</h1>
+    <p>The website, the member app, and the staff dashboard — explained for members, librarians, and admins. One system, open 24/7, with every safeguard built in.</p>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <div class="t">Contents</div>
+  <ol>
+    <li><a href="#big-picture"><span class="n">01</span>The big picture</a></li>
+    <li><a href="#members"><span class="n">02</span>For members</a></li>
+    <li><a href="#staff"><span class="n">03</span>For librarians</a></li>
+    <li><a href="#admins"><span class="n">04</span>For admins</a></li>
+    <li><a href="#automation"><span class="n">05</span>Behind the scenes</a></li>
+    <li><a href="#quickref"><span class="n">06</span>Quick reference</a></li>
+  </ol>
+</nav>
+
+<section id="big-picture">
+  <h2><span class="num">01</span>The big picture</h2>
+  <div class="rule"></div>
+  <p>The system has three parts that work together:</p>
+  <div class="tablewrap"><table>
+    <tr><th>Part</th><th>Who uses it</th><th>What it does</th></tr>
+    <tr><td><strong>Marketing site</strong></td><td>The public</td><td>The pitch: what the library is, the river rules, become-a-member, volunteer and donate calls to action.</td></tr>
+    <tr><td><strong>Member app</strong></td><td>Members</td><td>Self-serve everything: join with the waiver, check out gear 24/7, get the shed code, return with a condition report, claim volunteer shifts.</td></tr>
+    <tr><td><strong>Staff dashboard</strong></td><td>Librarians &amp; admins</td><td>The same app with more doors: inventory, repairs, member roster, checkout board, schedule, incidents, settings.</td></tr>
+  </table></div>
+  <div class="callout key">
+    <div class="cap">The core idea</div>
+    The shed stays open 24/7 with nobody behind a counter, because every safeguard the paper system relied on a human for — the waiver, the checkout board, the buddy rule, the honesty about damage — is enforced by the software instead.
+  </div>
+</section>
+
+<section id="members">
+  <h2><span class="num">02</span>For members</h2>
+  <div class="rule"></div>
+
+  <h3>Joining the library</h3>
+  <ol class="steps">
+    <li>On the website, choose <strong>Become a member</strong> — it's free.</li>
+    <li>Fill in your contact info, an <strong>emergency contact</strong> (required), and your whitewater experience level. Be honest — "new to whitewater" just means the app will ask who you're paddling with.</li>
+    <li>Read the <strong>liability waiver</strong> and sign it by typing your full legal name. <span class="hl">There is no membership without a signed waiver</span> — the system won't create the account.</li>
+    <li>You'll get a welcome email with the orientation schedule. Orientations are Tuesdays, 5:30pm at the shed (The Missing Corner, BZ Corner — across from the Mini Mart). New paddlers: come to one before your first checkout.</li>
+  </ol>
+
+  <h3>Checking out gear</h3>
+  <div class="stepgrid">
+    <div class="stepcard"><span class="n">1</span><h4>Pick your gear</h4><p>Everything available right now, by category. Each item shows the code on its physical tag, brand/model, color, size, and condition. Up to 6 items.</p></div>
+    <div class="stepcard"><span class="n">2</span><h4>Pick a return date</h4><p>Up to 7 days out. Optionally tell us where you're paddling — it helps if something goes wrong.</p></div>
+    <div class="stepcard"><span class="n">3</span><h4>The agreement</h4><p>Four checkboxes, each a real rule: sober on the river, PFD on the water, buddy named if you're new, honest damage reports.</p></div>
+  </div>
+  <p>Hit the button and <span class="hl">your shed access code appears on screen</span> — and lands in your email. Take exactly the gear on your checkout, close the shed, scramble the lock.</p>
+  <div class="callout safe">
+    <div class="cap">The app will stop you if…</div>
+    …you have overdue gear out · your waiver is out of date (re-sign and continue) · your membership is suspended · someone grabbed an item seconds before you (refresh and re-pick) · any acknowledgment is missing.
+  </div>
+
+  <h3>While you're out</h3>
+  <p><strong>My Gear</strong> shows everything you have out, the due date, and your shed code in case you forget it. You'll get a friendly reminder email the day before gear is due.</p>
+
+  <h3>Returning gear</h3>
+  <ol class="steps">
+    <li>Bring everything back clean and drained.</li>
+    <li>In <strong>My Gear</strong>, hit <strong>Return gear</strong> and rate each item: <em>Good shape</em> or <em>Damaged</em>.</li>
+    <li>Damaged items need a short description — mandatory, and here's the deal: <span class="hl">nobody is ever charged for honestly reported damage.</span> Your note goes straight to the repair queue so the next member never takes out unsafe gear.</li>
+  </ol>
+  <p>Overdue gear blocks new checkouts and triggers reminder emails (day before, day after, and a week after — at which point a librarian is notified). Need more time? Ask — extensions take seconds.</p>
+
+  <h3>Volunteering</h3>
+  <p>The <strong>Volunteer</strong> page lists upcoming shifts — orientation nights, repair nights, inventory audits. <strong>Claim shift</strong> to sign up, <strong>Drop shift</strong> if plans change. Shifts show who else is coming and close when full.</p>
+</section>
+
+<section id="staff">
+  <h2><span class="num">03</span>For librarians</h2>
+  <div class="rule"></div>
+  <p>Staff accounts see the member app plus the operational pages.</p>
+
+  <h3>Dashboard</h3>
+  <p>The at-a-glance page: gear available / checked out / overdue / in repair, active members, open incidents, everything currently out with due dates, the repair queue, and upcoming shifts. Every tile is clickable.</p>
+
+  <h3>Inventory</h3>
+  <ul>
+    <li><strong>Add or edit gear</strong> — code (write it on the physical item), category, brand/model, color, size, condition.</li>
+    <li><strong>Log issue</strong> — <em>minor</em> keeps the item in circulation; <em>major/unusable</em> pulls it automatically.</li>
+    <li><strong>Pull / Restore</strong> — take an item out of circulation (reason required; members just see "In for repair") or put it back.</li>
+    <li><strong>Repairs tab</strong> — the queue. Member damage reports land here automatically; resolving a ticket can return the item to service in the same action.</li>
+  </ul>
+
+  <h3>Members</h3>
+  <p>The roster shows waiver status, orientation status, experience level, gear out, and overdues. Click into a member for full history, then:</p>
+  <ul>
+    <li><strong>Mark orientation done</strong> after a Tuesday session</li>
+    <li><strong>Suspend / Reinstate</strong> — reason required; suspended members can't check out</li>
+    <li><strong>Terminate</strong> for policy violations — also disables their login</li>
+  </ul>
+
+  <h3>Checkouts</h3>
+  <p>The digital checkout board — Active, Overdue, Returned, and the <strong>Code log</strong> (every access code ever issued, to whom, when).</p>
+  <ul>
+    <li><strong>Extend</strong> — new due date; reminder emails re-arm automatically.</li>
+    <li><strong>Force return</strong> — for gear back on the shelf but never marked returned, or lost gear. Items go back to circulation or to inspection, your choice.</li>
+    <li><strong>Today's door code</strong> — in daily-code mode, the code to program into the shed keypad shows here.</li>
+  </ul>
+
+  <h3>Schedule &amp; Incidents</h3>
+  <p>Create volunteer shifts and watch signups fill. Log injuries, near-misses, gear damage, and policy violations with status tracking and follow-up notes.</p>
+</section>
+
+<section id="admins">
+  <h2><span class="num">04</span>For admins</h2>
+  <div class="rule"></div>
+
+  <h3>Users &amp; roles</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Role</th><th>Can do</th></tr>
+    <tr><td><code>admin</code></td><td>Everything, including users and settings</td></tr>
+    <tr><td><code>librarian</code></td><td>All staff operations</td></tr>
+    <tr><td><code>volunteer</code> / <code>member</code></td><td>Self-service + shift signup</td></tr>
+    <tr><td><code>disabled</code></td><td>Nothing (used for terminated memberships)</td></tr>
+  </table></div>
+  <p>Role changes take effect immediately — the system re-checks the database on every request. Password resets happen here too. Safety rail: you can't demote or disable your own admin account.</p>
+
+  <h3>Settings (live — changes apply instantly)</h3>
+  <ul>
+    <li><strong>Loan limits</strong> — max days per loan, max items per checkout</li>
+    <li><strong>Door code mode</strong> — <code>per_checkout</code> (each checkout gets a random code) or <code>daily</code> (one code per day; staff see it for programming the keypad, members only after a valid check-in)</li>
+    <li><strong>Waiver version</strong> — bump the number and <span class="hl">every member must re-sign before their next checkout</span>. Use whenever the waiver text changes.</li>
+    <li><strong>Notifications kill switch</strong> — pauses every outbound email at once, with a reason</li>
+    <li><strong>Orientation info</strong>, library address, staff digest email</li>
+  </ul>
+
+  <h3>The paper trail</h3>
+  <p>Three logs, all in the app: the <strong>audit log</strong> (every admin action — who, what, when), the <strong>notification log</strong> (every email sent or suppressed, and why), and the <strong>access code log</strong> (every shed code issued).</p>
+
+  <h3>Donations</h3>
+  <p>The website's Donate button opens a Stripe-hosted checkout — card details never touch the library's systems. Completed donations appear for staff with running totals. Until Stripe keys are configured, the button politely says donations aren't live yet.</p>
+</section>
+
+<section id="automation">
+  <h2><span class="num">05</span>Behind the scenes</h2>
+  <div class="rule"></div>
+  <ul>
+    <li><strong>Reminder emails</strong> run hourly, three waves per checkout, each sent at most once: due-soon (24h before) → overdue (past due; also blocks new checkouts) → week-overdue (firmer note + staff digest). Extending a due date resets the waves.</li>
+    <li><strong>Access codes</strong> — every issuance is logged. Per-checkout mode gives each member their own random 6-digit code; daily mode derives one code per day from a secret key, so staff can program the lock ahead of time.</li>
+    <li><strong>Damage triage</strong> — a "damaged" report instantly pulls the item from circulation and opens a repair ticket. There is no gap where unsafe gear is borrowable.</li>
+  </ul>
+  <div class="callout safe">
+    <div class="cap">Security, in one paragraph</div>
+    Passwords are properly hashed, logins are rate-limited, staff pages verify the caller's role against the database on every request, members can only touch their own checkouts, and every sensitive action lands in a log. A full security review ships with the codebase.
+  </div>
+</section>
+
+<section id="quickref">
+  <h2><span class="num">06</span>Quick reference</h2>
+  <div class="rule"></div>
+  <div class="tablewrap"><table>
+    <tr><th>I want to…</th><th>Where</th></tr>
+    <tr><td>Join the library</td><td>Website → Become a member</td></tr>
+    <tr><td>Check out gear</td><td>App → Check Out Gear</td></tr>
+    <tr><td>See my shed code again</td><td>App → My Gear</td></tr>
+    <tr><td>Return gear / report damage</td><td>App → My Gear → Return gear</td></tr>
+    <tr><td>Volunteer for a shift</td><td>App → Volunteer</td></tr>
+    <tr><td>Add a new boat to inventory</td><td>Staff → Inventory → + Add gear</td></tr>
+    <tr><td>Handle a damage report</td><td>Staff → Inventory → Repairs</td></tr>
+    <tr><td>Extend someone's loan</td><td>Staff → Checkouts → Extend</td></tr>
+    <tr><td>Mark orientation complete</td><td>Staff → Members → (member)</td></tr>
+    <tr><td>Suspend a member</td><td>Staff → Members → (member) → Suspend</td></tr>
+    <tr><td>Post an orientation night</td><td>Staff → Schedule → + New shift</td></tr>
+    <tr><td>Change loan length / door code mode</td><td>Admin → Settings</td></tr>
+    <tr><td>Force everyone to re-sign the waiver</td><td>Admin → Settings → bump Waiver version</td></tr>
+    <tr><td>Pause all emails</td><td>Admin → Settings → kill switch</td></tr>
+    <tr><td>Add a librarian account</td><td>Admin → Users → + Add user</td></tr>
+  </table></div>
+</section>
+
+</div>
+
+<footer>
+  <div class="display">See you at the put-in</div>
+  White Salmon Boat Library · The Missing Corner, BZ Corner, WA · Free gear, real whitewater
+</footer>
+
+</body>
+</html>
