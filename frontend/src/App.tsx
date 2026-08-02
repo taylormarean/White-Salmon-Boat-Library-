@@ -1,7 +1,8 @@
-// Navigation shell — hash-routed, role-gated nav groups (fleet-app App.tsx pattern).
+// Navigation shell — frosted-glass sticky nav, mobile slide-down menu,
+// page-enter transitions, role-gated nav groups (fleet-app App.tsx pattern).
 
 import { useEffect, useState } from 'react';
-import { C, S, FONT } from './theme';
+import { C, S, R, FONT, injectGlobalStyles } from './theme';
 import { getAuthUser, clearAuth, isStaff, type AuthUser } from './auth';
 import Login from './pages/Login';
 import Join from './pages/Join';
@@ -22,7 +23,7 @@ type Page =
   | 'dashboard' | 'inventory' | 'members' | 'checkouts' | 'incidents' | 'admin' | 'settings';
 
 const MEMBER_NAV: { page: Page; label: string }[] = [
-  { page: 'checkout', label: 'Check Out Gear' },
+  { page: 'checkout', label: 'Check Out' },
   { page: 'mygear', label: 'My Gear' },
   { page: 'shifts', label: 'Volunteer' },
   { page: 'policies', label: 'Policies' },
@@ -35,7 +36,6 @@ const STAFF_NAV: { page: Page; label: string }[] = [
   { page: 'checkouts', label: 'Checkouts' },
   { page: 'shifts', label: 'Schedule' },
   { page: 'incidents', label: 'Incidents' },
-  { page: 'policies', label: 'Policies' },
 ];
 
 const ADMIN_NAV: { page: Page; label: string }[] = [
@@ -49,17 +49,47 @@ function pageFromHash(): Page {
   return (valid as string[]).includes(h) ? (h as Page) : 'login';
 }
 
+function LogoMark({ size = 32 }: { size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '30%', flexShrink: 0,
+      background: `linear-gradient(135deg, #14A0AC, ${C.accent})`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.55, boxShadow: '0 2px 6px rgba(14,124,134,0.3)',
+    }}>🛶</div>
+  );
+}
+
 export default function App() {
+  useEffect(injectGlobalStyles, []);
+
   const [user, setUser] = useState<AuthUser | null>(getAuthUser());
   const [page, setPage] = useState<Page>(pageFromHash());
+  const [pageKey, setPageKey] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 780);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onHash = () => setPage(pageFromHash());
+    const onHash = () => { setPage(pageFromHash()); setPageKey((k) => k + 1); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const nav = (p: Page) => { window.location.hash = `#/${p}`; setPage(p); };
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 780);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => { if (!isMobile) setMenuOpen(false); }, [isMobile]);
+
+  const nav = (p: Page) => {
+    window.location.hash = `#/${p}`;
+    setPage(p);
+    setPageKey((k) => k + 1);
+    setMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const onLogin = (u: AuthUser) => {
     setUser(u);
@@ -67,13 +97,16 @@ export default function App() {
   };
   const onLogout = () => { clearAuth(); setUser(null); nav('login'); };
 
-  // Unauthenticated surface: login, join, policies, browse-only checkout page
+  // Unauthenticated surface: login, join, policies
   if (!user && !['join', 'policies'].includes(page)) {
     return <Login onLogin={onLogin} onJoin={() => nav('join')} onPolicies={() => nav('policies')} />;
   }
   if (!user && page === 'join') return <Join onDone={() => nav('login')} onBack={() => nav('login')} />;
   if (!user && page === 'policies') return (
-    <div style={S.page}><TopBar user={null} page={page} nav={nav} onLogout={onLogout} /><Policies /></div>
+    <div style={S.page}>
+      <TopBar user={null} page={page} nav={nav} onLogout={onLogout} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+      <div key={pageKey} className="page-enter"><Policies /></div>
+    </div>
   );
 
   const staff = isStaff(user);
@@ -85,12 +118,12 @@ export default function App() {
   let effective = page;
   if (!staff && staffPages.includes(page)) effective = 'checkout';
   if (!admin && adminPages.includes(page)) effective = staff ? 'dashboard' : 'checkout';
-  if (effective === 'login') effective = staff ? 'dashboard' : 'checkout';
+  if (effective === 'login' || effective === 'join') effective = staff ? 'dashboard' : 'checkout';
 
   return (
     <div style={S.page}>
-      <TopBar user={user} page={effective} nav={nav} onLogout={onLogout} />
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px 60px' }}>
+      <TopBar user={user} page={effective} nav={nav} onLogout={onLogout} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+      <main key={pageKey} className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 20px 80px' }}>
         {effective === 'checkout' && <SelfCheckout onDone={() => nav('mygear')} />}
         {effective === 'mygear' && <MyGear />}
         {effective === 'policies' && <Policies />}
@@ -107,40 +140,98 @@ export default function App() {
   );
 }
 
-function TopBar({ user, page, nav, onLogout }: {
+function TopBar({ user, page, nav, onLogout, isMobile, menuOpen, setMenuOpen }: {
   user: AuthUser | null; page: Page; nav: (p: Page) => void; onLogout: () => void;
+  isMobile: boolean; menuOpen: boolean; setMenuOpen: (v: boolean) => void;
 }) {
   const staff = isStaff(user);
   const admin = user?.role === 'admin';
   const items = user
-    ? (staff ? [...STAFF_NAV, ...(admin ? ADMIN_NAV : [])] : MEMBER_NAV)
+    ? (staff
+        ? [...STAFF_NAV, ...(admin ? ADMIN_NAV : []), { page: 'policies' as Page, label: 'Policies' }]
+        : MEMBER_NAV)
     : [{ page: 'policies' as Page, label: 'Policies' }];
+
+  const navBtn = (i: { page: Page; label: string }, mobile = false) => {
+    const active = page === i.page;
+    return (
+      <button key={i.page} onClick={() => nav(i.page)} style={{
+        padding: mobile ? '12px 16px' : '6px 12px',
+        fontSize: mobile ? 15 : 13, fontWeight: active ? 600 : 500,
+        border: 'none', borderRadius: R.sm, cursor: 'pointer', fontFamily: FONT,
+        letterSpacing: '-0.01em', textAlign: 'left' as const,
+        width: mobile ? '100%' : undefined,
+        background: active ? C.navActiveBg : 'transparent',
+        color: active ? C.navActive : C.navText,
+      }}>{i.label}</button>
+    );
+  };
 
   return (
     <header style={{
-      position: 'sticky', top: 0, zIndex: 10, background: C.navBg, backdropFilter: 'blur(12px)',
-      borderBottom: `1px solid ${C.border}`, fontFamily: FONT,
+      position: 'sticky', top: 0, zIndex: 100,
+      background: C.navBg,
+      backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      borderBottom: `1px solid ${C.navBorder}`, fontFamily: FONT,
     }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-          🛶 White Salmon Boat Library
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', gap: 14, height: 54 }}>
+        <div onClick={() => nav(user ? (staff ? 'dashboard' : 'checkout') : 'login')}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }}>
+          <LogoMark />
+          <span style={{ fontWeight: 650, fontSize: 15, letterSpacing: '-0.02em', color: C.text, whiteSpace: 'nowrap' }}>
+            {isMobile ? 'Boat Library' : 'White Salmon Boat Library'}
+          </span>
         </div>
-        <nav style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
-          {items.map((i) => (
-            <button key={i.page} onClick={() => nav(i.page)} style={{
-              padding: '7px 12px', fontSize: 14, fontWeight: 500, border: 'none', borderRadius: 8, cursor: 'pointer',
-              background: page === i.page ? C.accentTint : 'transparent',
-              color: page === i.page ? C.accent : C.textSecondary,
-            }}>{i.label}</button>
-          ))}
-        </nav>
-        {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, color: C.textSecondary }}>{user.name} · {user.role}</span>
-            <button onClick={onLogout} style={{ ...S.btnGhost, padding: '6px 12px', fontSize: 13 }}>Sign out</button>
-          </div>
+
+        {!isMobile && (
+          <>
+            <nav style={{ display: 'flex', gap: 2, flex: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {items.map((i) => navBtn(i))}
+            </nav>
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 13, color: C.textSecondary, whiteSpace: 'nowrap' }}>{user.name}</span>
+                <button onClick={onLogout} style={{ ...S.btnGhost, padding: '5px 12px', fontSize: 13 }}>Sign out</button>
+              </div>
+            ) : (
+              <button onClick={() => nav('login')} style={{ ...S.btn, padding: '6px 16px', fontSize: 13, marginLeft: 'auto' }}>Sign in</button>
+            )}
+          </>
+        )}
+
+        {isMobile && (
+          <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu" style={{
+            marginLeft: 'auto', width: 38, height: 38, borderRadius: R.sm, border: `1px solid ${C.border}`,
+            background: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              {menuOpen
+                ? <path d="M3 3L13 13M13 3L3 13" stroke={C.text} strokeWidth="1.8" strokeLinecap="round" />
+                : <path d="M2 4H14M2 8H14M2 12H14" stroke={C.text} strokeWidth="1.8" strokeLinecap="round" />}
+            </svg>
+          </button>
         )}
       </div>
+
+      {isMobile && menuOpen && (
+        <div className="menu-enter" style={{
+          borderTop: `1px solid ${C.divider}`, padding: '10px 16px 16px',
+          display: 'flex', flexDirection: 'column', gap: 2,
+          background: 'rgba(244,247,247,0.97)',
+        }}>
+          {items.map((i) => navBtn(i, true))}
+          <div style={{ borderTop: `1px solid ${C.divider}`, marginTop: 8, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {user ? (
+              <>
+                <span style={{ fontSize: 13, color: C.textSecondary }}>{user.name} · {user.role}</span>
+                <button onClick={onLogout} style={{ ...S.btnGhost, padding: '6px 14px', fontSize: 13 }}>Sign out</button>
+              </>
+            ) : (
+              <button onClick={() => nav('login')} style={{ ...S.btn, width: '100%' }}>Sign in</button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

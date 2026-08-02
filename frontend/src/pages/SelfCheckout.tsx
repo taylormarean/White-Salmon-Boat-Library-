@@ -4,6 +4,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader, Loading } from '../components';
+
+function Step({ n, title, children }: { n: number; title: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <h2 style={{ ...S.h2, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{
+        width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+        background: C.accent, color: '#fff', fontSize: 13, fontWeight: 700,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>{n}</span>
+      <span>{title}</span>
+      {children}
+    </h2>
+  );
+}
 
 export default function SelfCheckout({ onDone }: { onDone: () => void }) {
   const [me, setMe] = useState<any>(null);
@@ -68,13 +83,14 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
   if (result) {
     return (
       <div style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ ...S.card, padding: 32 }}>
+        <div className="pop-in" style={{ ...S.card, padding: 32 }}>
           <div style={{ fontSize: 44 }}>🔓</div>
           <h1 style={S.h1}>You're all set!</h1>
           <p style={{ color: C.textSecondary, marginBottom: 20 }}>Your shed access code:</p>
           <div style={{
             fontSize: 44, fontWeight: 800, letterSpacing: '0.2em', color: C.accent,
-            background: C.accentTint, borderRadius: 14, padding: '18px 0', marginBottom: 20,
+            background: C.accentTint, border: `1.5px dashed rgba(14,124,134,0.35)`,
+            borderRadius: 16, padding: '18px 0', marginBottom: 20, fontVariantNumeric: 'tabular-nums',
           }}>{result.access_code}</div>
           <div style={{ textAlign: 'left', fontSize: 14, color: C.textSecondary, marginBottom: 20 }}>
             <p style={{ marginBottom: 8 }}><strong style={{ color: C.text }}>Your gear:</strong></p>
@@ -94,12 +110,11 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
 
   const canSubmit = selected.size > 0 && dueDate && acks.sober && acks.pfd && acks.experience && acks.condition && (!isBeginner || buddy.trim());
 
+  if (!me && !error) return <Loading label="Loading your membership" />;
+
   return (
     <div>
-      <h1 style={S.h1}>Check out gear</h1>
-      <p style={{ color: C.textSecondary, marginBottom: 20 }}>
-        Pick what you need, agree to the safety rules, and you'll get the shed access code instantly.
-      </p>
+      <PageHeader title="Check out gear" subtitle="Pick what you need, agree to the safety rules, and you'll get the shed access code instantly." />
 
       {me && me.status !== 'active' && (
         <div style={{ ...S.card, borderLeft: `4px solid ${C.red}`, marginBottom: 16 }}>
@@ -108,7 +123,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
       )}
 
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <h2 style={S.h2}>1 · Pick your gear <span style={{ color: C.textSecondary, fontWeight: 400 }}>({selected.size} selected, max 6)</span></h2>
+        <Step n={1} title={<>Pick your gear <span style={{ color: C.textSecondary, fontWeight: 400 }}>({selected.size} selected, max 6)</span></>} />
         {cats.map((cat) => {
           const items = byCat.get(cat.id) ?? [];
           if (items.length === 0) return null;
@@ -137,7 +152,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
       </div>
 
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <h2 style={S.h2}>2 · When will you bring it back?</h2>
+        <Step n={2} title="When will you bring it back?" />
         <label style={S.label}>Return date (loans up to 7 days)</label>
         <input style={{ ...S.input, maxWidth: 220 }} type="date" value={dueDate}
           min={new Date().toISOString().slice(0, 10)} max={maxDate}
@@ -149,7 +164,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
       </div>
 
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <h2 style={S.h2}>3 · The library agreement</h2>
+        <Step n={3} title="The library agreement" />
         {([
           ['sober', 'Zero tolerance: no drugs or alcohol while using library gear on the river.'],
           ['pfd', 'I will wear a properly fitted PFD whenever I am on the water.'],

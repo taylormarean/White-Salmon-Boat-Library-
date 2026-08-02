@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { Modal, type ModalConfig, PageHeader, Loading, Empty } from '../components';
 
 const TYPE_LABEL: Record<string, string> = {
   orientation: 'New Member Orientation',
@@ -14,8 +15,9 @@ const TYPE_LABEL: Record<string, string> = {
 const EMPTY = { shift_date: '', start_time: '17:30', end_time: '19:00', shift_type: 'orientation', title: '', notes: '', needed: 1 };
 
 export default function Shifts({ staff }: { staff: boolean }) {
-  const [shifts, setShifts] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[] | null>(null);
   const [form, setForm] = useState<any>(null);
+  const [modal, setModal] = useState<ModalConfig | null>(null);
   const [error, setError] = useState('');
 
   const load = () => { api.getShifts().then(setShifts).catch((e) => setError(e.message)); };
@@ -38,20 +40,18 @@ export default function Shifts({ staff }: { staff: boolean }) {
     } catch (e: any) { setError(e.message); }
   };
 
-  const cancel = async (s: any) => {
-    if (!confirm(`Cancel "${s.title}" on ${s.shift_date}?`)) return;
-    try { await api.cancelShift(s.id); load(); } catch (e: any) { setError(e.message); }
-  };
+  const cancel = (s: any) => setModal({
+    title: `Cancel "${s.title}"`,
+    description: `${new Date(s.shift_date + 'T00:00:00').toDateString()}, ${s.start_time}–${s.end_time}. Signed-up volunteers keep no record of a cancelled shift.`,
+    confirmLabel: 'Cancel shift', danger: true,
+    onConfirm: async () => { await api.cancelShift(s.id); load(); },
+  });
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
-        <h1 style={S.h1}>{staff ? 'Volunteer schedule' : 'Volunteer'}</h1>
-        {staff && <button style={S.btn} onClick={() => setForm({ ...EMPTY })}>+ New shift</button>}
-      </div>
-      <p style={{ color: C.textSecondary, marginBottom: 20 }}>
-        The library runs on volunteers — claim a shift and help keep the gear flowing.
-      </p>
+      <PageHeader title={staff ? 'Volunteer schedule' : 'Volunteer'}
+        subtitle="The library runs on volunteers — claim a shift and help keep the gear flowing."
+        actions={staff ? <button style={S.btn} onClick={() => setForm({ ...EMPTY })}>+ New shift</button> : undefined} />
       {error && <div style={{ color: C.red, marginBottom: 12 }}>{error}</div>}
 
       {form && (
@@ -82,8 +82,9 @@ export default function Shifts({ staff }: { staff: boolean }) {
         </div>
       )}
 
-      {shifts.length === 0 && <div style={{ ...S.card, color: C.textSecondary }}>No upcoming shifts. Check back soon!</div>}
-      {shifts.map((s) => {
+      {shifts === null && <Loading label="Loading shifts" />}
+      {shifts?.length === 0 && <div style={S.card}><Empty icon="🗓️" title="No upcoming shifts" hint="Check back soon!" /></div>}
+      {(shifts ?? []).map((s) => {
         const full = s.signed_up >= s.needed;
         return (
           <div key={s.id} style={{ ...S.card, marginBottom: 12, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -113,6 +114,7 @@ export default function Shifts({ staff }: { staff: boolean }) {
           </div>
         );
       })}
+      <Modal config={modal} onClose={() => setModal(null)} />
     </div>
   );
 }

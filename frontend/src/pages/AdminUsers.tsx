@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader, Segmented } from '../components';
 
 const ROLES = ['admin', 'librarian', 'volunteer', 'member', 'disabled'];
 const EMPTY = { username: '', display_name: '', password: '', role: 'volunteer', phone: '' };
@@ -33,15 +34,12 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <h1 style={S.h1}>Admin</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={tab === 'users' ? S.btn : S.btnGhost} onClick={() => setTab('users')}>Users</button>
-          <button style={tab === 'audit' ? S.btn : S.btnGhost} onClick={() => setTab('audit')}>Audit log</button>
-          <button style={tab === 'notifications' ? S.btn : S.btnGhost} onClick={() => setTab('notifications')}>Notification log</button>
+      <PageHeader title="Admin" subtitle="Accounts, audit trail, and every outbound email."
+        actions={<>
+          <Segmented tabs={[{ key: 'users', label: 'Users' }, { key: 'audit', label: 'Audit log' }, { key: 'notifications', label: 'Notifications' }]}
+            value={tab} onChange={setTab} />
           {tab === 'users' && <button style={S.btn} onClick={() => setForm({ ...EMPTY })}>+ Add user</button>}
-        </div>
-      </div>
+        </>} />
       {error && <div style={{ color: C.red, marginBottom: 12 }}>{error}</div>}
 
       {form && (

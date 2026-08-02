@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader, Empty } from '../components';
 
 const TYPES = ['injury', 'near_miss', 'gear_damage', 'policy_violation', 'other'];
 const EMPTY = { type: 'other', description: '', occurred_at: '', member_id: '' };
@@ -30,10 +31,8 @@ export default function Incidents() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <h1 style={S.h1}>Incidents</h1>
-        <button style={S.btn} onClick={() => setForm({ ...EMPTY })}>+ Report incident</button>
-      </div>
+      <PageHeader title="Incidents" subtitle="Injuries, near-misses, gear damage, and policy violations."
+        actions={<button style={S.btn} onClick={() => setForm({ ...EMPTY })}>+ Report incident</button>} />
       {error && <div style={{ color: C.red, marginBottom: 12 }}>{error}</div>}
 
       {form && (
@@ -88,7 +87,7 @@ export default function Incidents() {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <p style={{ padding: 20, color: C.textSecondary, fontSize: 14 }}>No incidents reported. 🤞</p>}
+        {rows.length === 0 && <Empty icon="🤞" title="No incidents reported" hint="Long may it last." />}
       </div>
     </div>
   );

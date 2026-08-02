@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader } from '../components';
 
 const FIELDS: { key: string; label: string; help?: string; type?: 'select' | 'toggle'; options?: string[] }[] = [
   { key: 'app_name', label: 'Library name' },
@@ -39,8 +40,7 @@ export default function Settings() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h1 style={S.h1}>Settings</h1>
-      <p style={{ color: C.textSecondary, marginBottom: 20 }}>Runtime configuration — changes apply immediately.</p>
+      <PageHeader title="Settings" subtitle="Runtime configuration — changes apply immediately." />
 
       <div style={{ ...S.card, marginBottom: 16, borderLeft: `4px solid ${paused ? C.red : C.green}` }}>
         <h2 style={S.h2}>Notifications kill switch</h2>

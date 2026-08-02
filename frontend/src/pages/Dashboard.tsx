@@ -3,12 +3,23 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader, Loading } from '../components';
 
-function Stat({ label, value, color, onClick }: { label: string; value: number | string; color?: string; onClick?: () => void }) {
+function Stat({ icon, label, value, color, onClick }: { icon: string; label: string; value: number | string; color?: string; onClick?: () => void }) {
   return (
-    <div onClick={onClick} style={{ ...S.card, flex: 1, minWidth: 130, cursor: onClick ? 'pointer' : 'default' }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: color ?? C.text }}>{value}</div>
-      <div style={{ fontSize: 13, color: C.textSecondary }}>{label}</div>
+    <div onClick={onClick} role="button" style={{
+      ...S.card, flex: 1, minWidth: 140, cursor: 'pointer', padding: 18,
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: 12, flexShrink: 0, fontSize: 20,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.035)',
+      }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: color ?? C.text }}>{value}</div>
+        <div style={{ fontSize: 12.5, color: C.textSecondary, letterSpacing: '-0.01em' }}>{label}</div>
+      </div>
     </div>
   );
 }
@@ -19,20 +30,19 @@ export default function Dashboard({ nav }: { nav: (p: string) => void }) {
   useEffect(() => { api.getDashboard().then(setD).catch((e) => setError(e.message)); }, []);
 
   if (error) return <p style={{ color: C.red }}>{error}</p>;
-  if (!d) return <p style={{ color: C.textSecondary }}>Loading…</p>;
+  if (!d) return <Loading label="Loading library status" />;
 
   return (
     <div>
-      <h1 style={S.h1}>Dashboard</h1>
-      <p style={{ color: C.textSecondary, marginBottom: 20 }}>Library status at a glance.</p>
+      <PageHeader title="Dashboard" subtitle="Library status at a glance." />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        <Stat label="Gear available" value={d.gear.available ?? 0} color={C.green} onClick={() => nav('inventory')} />
-        <Stat label="Checked out" value={d.gear.checked_out ?? 0} color={C.blue} onClick={() => nav('checkouts')} />
-        <Stat label="Overdue" value={d.overdue_count} color={d.overdue_count > 0 ? C.red : C.text} onClick={() => nav('checkouts')} />
-        <Stat label="In repair" value={d.gear.maintenance ?? 0} color={C.yellow} onClick={() => nav('inventory')} />
-        <Stat label="Active members" value={d.members?.active ?? 0} onClick={() => nav('members')} />
-        <Stat label="Open incidents" value={d.open_incidents} color={d.open_incidents > 0 ? C.yellow : C.text} onClick={() => nav('incidents')} />
+        <Stat icon="🛶" label="Gear available" value={d.gear.available ?? 0} color={C.green} onClick={() => nav('inventory')} />
+        <Stat icon="🌊" label="Checked out" value={d.gear.checked_out ?? 0} color={C.blue} onClick={() => nav('checkouts')} />
+        <Stat icon="⏰" label="Overdue" value={d.overdue_count} color={d.overdue_count > 0 ? C.red : C.text} onClick={() => nav('checkouts')} />
+        <Stat icon="🔧" label="In repair" value={d.gear.maintenance ?? 0} color={C.yellow} onClick={() => nav('inventory')} />
+        <Stat icon="👥" label="Active members" value={d.members?.active ?? 0} onClick={() => nav('members')} />
+        <Stat icon="📋" label="Open incidents" value={d.open_incidents} color={d.open_incidents > 0 ? C.yellow : C.text} onClick={() => nav('incidents')} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>

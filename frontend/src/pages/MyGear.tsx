@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
+import { PageHeader, Loading, Empty } from '../components';
 
 export default function MyGear() {
   const [data, setData] = useState<{ member: any; active_checkouts: any[] } | null>(null);
@@ -38,22 +39,22 @@ export default function MyGear() {
     }
   };
 
-  if (!data) return <p style={{ color: C.textSecondary }}>{error || 'Loading…'}</p>;
+  if (!data) return error ? <p style={{ color: C.red }}>{error}</p> : <Loading label="Loading your gear" />;
 
   const m = data.member;
   return (
     <div>
-      <h1 style={S.h1}>My gear</h1>
-      <p style={{ color: C.textSecondary, marginBottom: 20 }}>
-        Member since {new Date(m.created_at).toLocaleDateString()} · {m.experience_level}
-        {m.orientation_completed_at ? ' · orientation ✓' : ''}
-      </p>
+      <PageHeader title="My gear"
+        subtitle={`Member since ${new Date(m.created_at).toLocaleDateString()} · ${m.experience_level}${m.orientation_completed_at ? ' · orientation ✓' : ''}`} />
       {message && <div style={{ ...S.card, borderLeft: `4px solid ${C.green}`, marginBottom: 16 }}>{message}</div>}
       {error && <div style={{ color: C.red, marginBottom: 12 }}>{error}</div>}
 
       {data.active_checkouts.length === 0 && (
-        <div style={{ ...S.card, textAlign: 'center', color: C.textSecondary }}>
-          Nothing checked out. <a href="#/checkout" style={{ color: C.accent }}>Grab some gear →</a>
+        <div style={S.card}>
+          <Empty icon="🛶" title="Nothing checked out" hint="The river is calling." />
+          <div style={{ textAlign: 'center', marginTop: 4 }}>
+            <a href="#/checkout" style={{ ...S.btn, textDecoration: 'none' }}>Grab some gear →</a>
+          </div>
         </div>
       )}
 
