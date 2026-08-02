@@ -1,0 +1,25 @@
+name = "wsbl-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0 * * * *"]  # hourly: due-soon + overdue gear reminders (deduped via reminder_log)
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wsbl-db"
+database_id = "PASTE_YOUR_D1_ID_HERE"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "PASTE_YOUR_KV_ID_HERE"
+
+[vars]
+FRONTEND_URL = "https://whitesalmonboatlibrary.org"
+
+# Secrets (wrangler secret put ...):
+#   JWT_SECRET        — token signing key (required)
+#   DOOR_CODE_SECRET  — daily door-code derivation key (required if door_code_mode=daily)
+#   RESEND_API_KEY    — email transport (optional; sends log as failed without it)
+#   FROM_EMAIL        — verified Resend sender, e.g. noreply@whitesalmonboatlibrary.org
