@@ -47,7 +47,7 @@ export async function dailyAccessCode(secret: string, dateYmd: string): Promise<
   return String(n % 1_000_000).padStart(6, '0');
 }
 
-/** Today's date in Pacific time as YYYY-MM-DD (the shed lives in Husum, WA). */
+/** Today's date in Pacific time as YYYY-MM-DD (the shed lives in BZ Corner, WA). */
 export function todayPacific(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 }

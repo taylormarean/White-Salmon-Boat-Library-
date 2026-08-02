@@ -56,7 +56,7 @@ export default function Policies() {
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 20px' }}>
       <h1 style={S.h1}>Library policies</h1>
       <p style={{ color: C.textSecondary, marginBottom: 24 }}>
-        The White Salmon Boat Library is a free, donation-based community gear library in Husum, WA.
+        The White Salmon Boat Library is a free, donation-based community gear library at The Missing Corner in BZ Corner, WA.
         These rules keep it running — and keep everyone safe on the river.
       </p>
       {SECTIONS.map((s) => (

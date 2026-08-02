@@ -231,9 +231,9 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('door_code_mode', 'per_checkout'),        -- per_checkout | daily
   ('notifications_paused', '0'),
   ('notifications_pause_reason', ''),
-  ('orientation_info', 'New Member Orientations are Tuesdays at 5:30pm at the library shed in Husum (across from the Husum Mini Mart).'),
+  ('orientation_info', 'New Member Orientations are Tuesdays at 5:30pm at the library shed at The Missing Corner in BZ Corner (across from the BZ Corner Mini Mart).'),
   ('waiver_version', '1'),
-  ('library_address', '721 Aplin Rd, White Salmon, WA 98672'),
+  ('library_address', 'The Missing Corner, BZ Corner, WA — Hwy 141 at Glenwood Hwy, across from the Mini Mart'),
   ('staff_digest_email', '');
 
 -- ============ Seed data ============

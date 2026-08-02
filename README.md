@@ -2,7 +2,7 @@
 
 The Gorge rides operations platform (Waterfall Shuttle fleet app), adapted for
 the [White Salmon Boat Library](https://www.whitesalmonboatlibrary.org/) — a
-free, donation-based community whitewater gear library in Husum, WA.
+free, donation-based community whitewater gear library at The Missing Corner in BZ Corner, WA.
 
 Members check **themselves** in: sign up online (waiver included), pick gear,
 acknowledge the safety rules, and instantly receive the shed access code. The

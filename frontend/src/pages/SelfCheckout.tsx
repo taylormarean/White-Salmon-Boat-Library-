@@ -159,7 +159,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
           onChange={(e) => setDueDate(e.target.value)} />
         <div style={{ marginTop: 12 }}>
           <label style={S.label}>Where are you planning to paddle? (optional, helps us help you)</label>
-          <input style={{ ...S.input, maxWidth: 380 }} value={river} onChange={(e) => setRiver(e.target.value)} placeholder="e.g. Husum to Northwestern" />
+          <input style={{ ...S.input, maxWidth: 380 }} value={river} onChange={(e) => setRiver(e.target.value)} placeholder="e.g. BZ to Husum" />
         </div>
       </div>
 
