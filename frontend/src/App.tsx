@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { C, S, R, FONT, injectGlobalStyles } from './theme';
 import { getAuthUser, clearAuth, isStaff, type AuthUser } from './auth';
+import { IS_DEMO } from './api';
+import { resetDemo } from './demo/demoApi';
 import Login from './pages/Login';
 import Join from './pages/Join';
 import SelfCheckout from './pages/SelfCheckout';
@@ -122,6 +124,7 @@ export default function App() {
 
   return (
     <div style={S.page}>
+      {IS_DEMO && <DemoRibbon />}
       <TopBar user={user} page={effective} nav={nav} onLogout={onLogout} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       <main key={pageKey} className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 20px 80px' }}>
         {effective === 'checkout' && <SelfCheckout onDone={() => nav('mygear')} />}
@@ -136,6 +139,24 @@ export default function App() {
         {effective === 'admin' && admin && <AdminUsers />}
         {effective === 'settings' && admin && <Settings />}
       </main>
+    </div>
+  );
+}
+
+function DemoRibbon() {
+  return (
+    <div style={{
+      background: `linear-gradient(90deg, ${C.accent}, #14A0AC)`, color: '#fff',
+      padding: '7px 16px', fontSize: 12.5, fontWeight: 600, textAlign: 'center', fontFamily: FONT,
+      display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
+    }}>
+      <span>DEMO — everything works; data lives only in this browser.</span>
+      <button
+        onClick={() => { resetDemo(); clearAuth(); window.location.hash = ''; window.location.reload(); }}
+        style={{
+          background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)',
+          padding: '3px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: FONT,
+        }}>Reset demo data</button>
     </div>
   );
 }

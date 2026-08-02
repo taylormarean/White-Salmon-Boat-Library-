@@ -1,6 +1,10 @@
 // api.ts — the single typed API client (fleet-app rule: no sibling clients).
+// VITE_DEMO=1 builds swap in the in-browser demo backend (src/demo/demoApi.ts).
 
 import { getAuthToken, clearAuth } from './auth';
+import { demoApi } from './demo/demoApi';
+
+export const IS_DEMO = import.meta.env.VITE_DEMO === '1';
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8787';
 
@@ -23,7 +27,7 @@ async function req<T>(path: string, options?: RequestInit): Promise<T> {
 const post = (data: unknown, method = 'POST') =>
   ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 
-export const api = {
+const realApi = {
   // Auth
   login: (username: string, password: string) => req<{ token: string; user: any }>('/auth/login', post({ username, password })),
   verify: () => req<{ user: any }>('/auth/verify'),
@@ -89,3 +93,5 @@ export const api = {
   getAuditLog: () => req<any[]>('/admin/audit'),
   getNotificationLog: () => req<any[]>('/notifications/log'),
 };
+
+export const api: typeof realApi = IS_DEMO ? (demoApi as typeof realApi) : realApi;

@@ -1,7 +1,13 @@
 import { useState } from 'react';
-import { api } from '../api';
+import { api, IS_DEMO } from '../api';
 import { setAuth, type AuthUser } from '../auth';
 import { C, S } from '../theme';
+
+const DEMO_LOGINS = [
+  { label: '👤 Member — Sam (beginner)', email: 'sam.demo@example.com', password: 'paddle123' },
+  { label: '👤 Member — Maya (has gear out)', email: 'maya.demo@example.com', password: 'paddle123' },
+  { label: '🔑 Staff — Library Admin', email: 'admin@wsbl.demo', password: 'demo' },
+];
 
 export default function Login({ onLogin, onJoin, onPolicies }: {
   onLogin: (u: AuthUser) => void; onJoin: () => void; onPolicies: () => void;
@@ -11,11 +17,10 @@ export default function Login({ onLogin, onJoin, onPolicies }: {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doLogin = async (u: string, p: string) => {
     setError(''); setBusy(true);
     try {
-      const res = await api.login(email, password);
+      const res = await api.login(u, p);
       setAuth(res.token, res.user);
       onLogin(res.user);
     } catch (err: any) {
@@ -24,6 +29,8 @@ export default function Login({ onLogin, onJoin, onPolicies }: {
       setBusy(false);
     }
   };
+
+  const submit = (e: React.FormEvent) => { e.preventDefault(); doLogin(email, password); };
 
   return (
     <div style={{
@@ -51,6 +58,19 @@ export default function Login({ onLogin, onJoin, onPolicies }: {
           {error && <div style={{ color: C.red, fontSize: 14, marginBottom: 12 }}>{error}</div>}
           <button style={{ ...S.btn, width: '100%' }} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
+        {IS_DEMO && (
+          <div style={{ ...S.card, marginTop: 16, padding: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, textAlign: 'center' }}>
+              Demo — one-click sign in
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {DEMO_LOGINS.map((d) => (
+                <button key={d.email} onClick={() => doLogin(d.email, d.password)} disabled={busy}
+                  style={{ ...S.btnGhost, width: '100%', justifyContent: 'flex-start' }}>{d.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button onClick={onJoin} style={{ ...S.btnGhost, width: '100%' }}>New here? Become a member — it's free</button>
           <button onClick={onPolicies} style={{ background: 'none', border: 'none', color: C.textSecondary, fontSize: 13, cursor: 'pointer', padding: 6 }}>
