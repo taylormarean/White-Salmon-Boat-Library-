@@ -192,6 +192,19 @@ CREATE TABLE IF NOT EXISTS reminder_log (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_dedupe
   ON reminder_log (checkout_id, reminder_type, channel);
 
+-- ============ Donations (Stripe Checkout; webhook flips pending -> completed) ============
+
+CREATE TABLE IF NOT EXISTS donations (
+  id TEXT PRIMARY KEY,
+  stripe_session_id TEXT,
+  amount_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'usd',
+  email TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',  -- pending | completed | expired
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at TEXT
+);
+
 -- ============ Admin audit (same pattern as fleet-app migration 021) ============
 
 CREATE TABLE IF NOT EXISTS admin_audit_log (

@@ -6,8 +6,12 @@ import type { Env } from '../index';
 import { json, err, newId, audit } from '../lib/util';
 
 export const handleGear = {
-  /** GET /gear — public availability list (members browse before check-in). */
-  async list(env: Env, url: URL): Promise<Response> {
+  /**
+   * GET /gear — public availability list (members browse before check-in).
+   * `includeSensitive` (staff callers only, decided at the router) keeps
+   * oos_reason/notes — they can quote member damage reports.
+   */
+  async list(env: Env, url: URL, includeSensitive = false): Promise<Response> {
     const category = url.searchParams.get('category');
     const includeInactive = url.searchParams.get('all') === '1';
     let sql = `
@@ -23,7 +27,10 @@ export const handleGear = {
     if (category) { sql += ' AND g.category_id = ?'; binds.push(category); }
     sql += ' ORDER BY cat.sort, g.gear_code';
     const rows = await env.DB.prepare(sql).bind(...binds).all();
-    return json(rows.results ?? []);
+    const out = (rows.results ?? []).map((g: any) =>
+      includeSensitive ? g : { ...g, oos_reason: g.oos_reason ? 'In for repair' : null, notes: null },
+    );
+    return json(out);
   },
 
   /** GET /gear/categories */

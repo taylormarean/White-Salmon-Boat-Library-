@@ -116,7 +116,38 @@ Two modes (Settings page):
 
 Every issuance is audited in `access_code_log`.
 
+## Marketing site
+
+[site/index.html](site/index.html) is the public website — a single static
+page (no build step) with the membership pitch, the river rules, volunteer +
+gear-donation CTAs, and the donate button. Deploy it with:
+
+```bash
+wrangler pages deploy site --project-name=wsbl-site
+```
+
+Point its app links at the member app by serving the app under `/app/` on the
+same domain, or by linking with `?app=https://your-app-url`.
+
+## Stripe donations (prepared — flip on with two secrets)
+
+The donation flow is fully wired and degrades gracefully until keys exist:
+
+1. `wrangler secret put STRIPE_SECRET_KEY` — from the Stripe dashboard
+   (use `sk_test_...` first).
+2. In Stripe: add a webhook endpoint for
+   `https://<worker-url>/api/webhook/stripe` listening to
+   `checkout.session.completed` and `checkout.session.expired`, then
+   `wrangler secret put STRIPE_WEBHOOK_SECRET` with its `whsec_...` value.
+3. Done. The site's Donate button → `POST /api/public/donate` → Stripe
+   Checkout → webhook (signature-verified, replay-protected) marks the
+   `donations` row completed. Staff see records at `GET /api/donations`.
+
+No card data ever touches the Worker — Stripe hosts the payment page.
+
 ## Docs
 
 - [docs/SOP.md](docs/SOP.md) — standard operating procedures + the full
   Gorge-rides → boat-library concept mapping
+- [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) — security review findings
+  and status

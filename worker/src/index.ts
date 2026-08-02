@@ -13,15 +13,19 @@ import { handleIncidents } from './routes/incidents';
 import { handleAdmin, handlePublicInfo } from './routes/admin';
 import { handleDashboard } from './routes/dashboard';
 import { sendGearReminders } from './routes/reminders';
+import { handleDonate, handleStripeWebhook, handleDonationsList } from './routes/donations';
 
 export interface Env {
   DB: D1Database;
   KV: KVNamespace;
   FRONTEND_URL: string;
-  RESEND_API_KEY?: string;   // wrangler secret put RESEND_API_KEY
-  FROM_EMAIL?: string;       // verified Resend sender
-  JWT_SECRET?: string;       // wrangler secret put JWT_SECRET
-  DOOR_CODE_SECRET?: string; // wrangler secret put DOOR_CODE_SECRET (daily-code derivation)
+  SITE_URL?: string;             // marketing site (donation success/cancel URLs)
+  RESEND_API_KEY?: string;       // wrangler secret put RESEND_API_KEY
+  FROM_EMAIL?: string;           // verified Resend sender
+  JWT_SECRET?: string;           // wrangler secret put JWT_SECRET
+  DOOR_CODE_SECRET?: string;     // wrangler secret put DOOR_CODE_SECRET (daily-code derivation)
+  STRIPE_SECRET_KEY?: string;    // wrangler secret put STRIPE_SECRET_KEY
+  STRIPE_WEBHOOK_SECRET?: string; // wrangler secret put STRIPE_WEBHOOK_SECRET (whsec_...)
 }
 
 // Staff tier — canonical check (mirrors fleet-app STAFF_ROLES).
@@ -95,9 +99,29 @@ export default {
     // --- Public routes (no token required) — explicit whitelist, fleet-app style ---
     if (path === '/auth/login' && method === 'POST') return secure(await handleLogin(request, env), corsOrigin);
     if (path === '/auth/verify' && method === 'GET') return secure(await handleVerify(request, env), corsOrigin);
-    if (path === '/public/join' && method === 'POST') return secure(await handleJoin(request, env), corsOrigin);
+    if (path === '/public/join' && method === 'POST') {
+      // Rate-limit signups per IP: 5/hour (blocks member-spam + welcome-email abuse)
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      const joinKey = `join:${ip}`;
+      const joinCount = parseInt((await env.KV.get(joinKey)) ?? '0');
+      if (joinCount >= 5) {
+        return secure(jsonError('Too many signups from this connection — try again in an hour.', 429), corsOrigin);
+      }
+      const response = await handleJoin(request, env);
+      if (response.status === 200) await env.KV.put(joinKey, String(joinCount + 1), { expirationTtl: 3600 });
+      return secure(response, corsOrigin);
+    }
     if (path === '/public/info' && method === 'GET') return secure(await handlePublicInfo(env), corsOrigin);
-    if (path === '/gear' && method === 'GET') return secure(await handleGear.list(env, url), corsOrigin);
+    if (path === '/public/donate' && method === 'POST') return secure(await handleDonate(request, env), corsOrigin);
+    if (path === '/webhook/stripe' && method === 'POST') return secure(await handleStripeWebhook(request, env), corsOrigin);
+    if (path === '/gear' && method === 'GET') {
+      // Public availability browse. Staff callers additionally get inactive
+      // gear (all=1) and raw OOS reasons/notes, which can quote member damage
+      // reports — everyone else gets a sanitized view.
+      const staffCaller = await hasRoleRequest(request, env, STAFF_ROLES);
+      if (!staffCaller) url.searchParams.delete('all');
+      return secure(await handleGear.list(env, url, staffCaller), corsOrigin);
+    }
     if (path === '/gear/categories' && method === 'GET') return secure(await handleGear.categories(env), corsOrigin);
 
     // Everything else requires a valid JWT.
@@ -198,6 +222,8 @@ export default {
         response = (await requireAdmin(request, env)) ?? await handleAdmin.auditLog(env, url);
       } else if (path === '/notifications/log' && method === 'GET') {
         response = (await requireStaff(request, env)) ?? await handleAdmin.notificationLog(env, url);
+      } else if (path === '/donations' && method === 'GET') {
+        response = (await requireStaff(request, env)) ?? await handleDonationsList(env);
 
       } else {
         response = jsonError('Not found', 404);

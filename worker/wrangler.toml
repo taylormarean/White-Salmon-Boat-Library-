@@ -17,9 +17,12 @@ id = "PASTE_YOUR_KV_ID_HERE"
 
 [vars]
 FRONTEND_URL = "https://whitesalmonboatlibrary.org"
+SITE_URL = "https://whitesalmonboatlibrary.org"   # marketing site (donation success/cancel URLs)
 
 # Secrets (wrangler secret put ...):
-#   JWT_SECRET        — token signing key (required)
-#   DOOR_CODE_SECRET  — daily door-code derivation key (required if door_code_mode=daily)
-#   RESEND_API_KEY    — email transport (optional; sends log as failed without it)
-#   FROM_EMAIL        — verified Resend sender, e.g. noreply@whitesalmonboatlibrary.org
+#   JWT_SECRET            — token signing key (required)
+#   DOOR_CODE_SECRET      — daily door-code derivation key (required if door_code_mode=daily)
+#   RESEND_API_KEY        — email transport (optional; sends log as failed without it)
+#   FROM_EMAIL            — verified Resend sender, e.g. noreply@whitesalmonboatlibrary.org
+#   STRIPE_SECRET_KEY     — Stripe secret key (sk_live_... / sk_test_...); donations 503 until set
+#   STRIPE_WEBHOOK_SECRET — Stripe webhook signing secret (whsec_...) for /api/webhook/stripe
