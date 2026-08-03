@@ -35,6 +35,8 @@ const ALLOWED_ORIGINS = [
   'https://whitesalmonboatlibrary.org',
   'https://www.whitesalmonboatlibrary.org',
   'https://wsbl.pages.dev',
+  'https://wsbl-demo.pages.dev',
+  'https://wsbl-site.pages.dev',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
