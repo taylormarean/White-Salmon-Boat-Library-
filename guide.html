@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Guide — White Salmon Boat Library</title>
+<meta name="description" content="How the White Salmon Boat Library website, member app, and staff dashboard work — for members, librarians, and admins.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2230%22 fill=%22%230B3B40%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 text-anchor=%22middle%22>📖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #10282B; --deep: #0B3B40; --teal: #0E7C86;
+    --foam: #F6F1E5; --sand: #EDE4CE; --punch: #FF5A1F; --sun: #F2B90F;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Archivo', system-ui, sans-serif; background: var(--foam); color: var(--ink); line-height: 1.65; }
+  .display { font-family: 'Archivo Black', 'Archivo', system-ui, sans-serif; font-weight: 900; text-transform: uppercase; line-height: 0.95; letter-spacing: -0.02em; }
+
+  header.hero { background: var(--deep); color: var(--foam); padding: 60px 24px 50px; border-bottom: 4px solid var(--ink); }
+  .hero-wrap { max-width: 880px; margin: 0 auto; }
+  .hero .eyebrow { color: var(--sun); font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: 0.12em; margin-bottom: 12px; }
+  .hero h1 { font-size: clamp(34px, 6vw, 58px); }
+  .hero p { margin-top: 16px; font-size: 17px; max-width: 620px; opacity: 0.92; }
+
+  .layout { max-width: 880px; margin: 0 auto; padding: 40px 24px 100px; }
+
+  nav.toc {
+    background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 22px 26px;
+    box-shadow: 6px 6px 0 var(--ink); margin-bottom: 48px;
+  }
+  nav.toc .t { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: 0.1em; color: var(--punch); margin-bottom: 10px; }
+  nav.toc ol { list-style: none; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 5px 0; break-inside: avoid; }
+  nav.toc a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; }
+  nav.toc a:hover { color: var(--teal); }
+  nav.toc .n { color: var(--punch); font-family: 'Archivo Black', sans-serif; font-size: 13px; margin-right: 8px; }
+  @media (max-width: 640px) { nav.toc ol { columns: 1; } }
+
+  section { margin-bottom: 56px; }
+  h2 { font-family: 'Archivo Black', sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(24px, 4vw, 34px); letter-spacing: -0.01em; line-height: 1.05; margin-bottom: 8px; scroll-margin-top: 24px; }
+  h2 .num { color: var(--punch); margin-right: 10px; }
+  .rule { height: 4px; width: 64px; background: var(--teal); border-radius: 2px; margin: 10px 0 22px; }
+  h3 { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 17px; margin: 28px 0 10px; letter-spacing: 0.01em; }
+  p { margin-bottom: 12px; font-size: 15.5px; max-width: 72ch; }
+  ul, ol.steps { margin: 0 0 14px 22px; font-size: 15.5px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 800; }
+  .hl { background: var(--sun); padding: 0 5px; border-radius: 4px; box-decoration-break: clone; }
+
+  .callout {
+    background: #fff; border: 3px solid var(--ink); border-left-width: 10px; border-radius: 14px;
+    padding: 16px 20px; margin: 18px 0; font-size: 15px; max-width: none;
+  }
+  .callout.key { border-left-color: var(--punch); }
+  .callout.safe { border-left-color: var(--teal); }
+  .callout .cap { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .callout.key .cap { color: var(--punch); } .callout.safe .cap { color: var(--teal); }
+
+  .tablewrap { overflow-x: auto; margin: 16px 0 8px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; font-size: 14.5px; }
+  th { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.07em; text-align: left; background: var(--sand); padding: 10px 14px; border-bottom: 3px solid var(--ink); }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(16,40,43,0.15); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  code { background: var(--sand); border-radius: 5px; padding: 1px 7px; font-weight: 700; font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; }
+
+  .stepgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+  .stepcard { background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 20px; box-shadow: 5px 5px 0 var(--ink); position: relative; }
+  .stepcard .n { position: absolute; top: -16px; left: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--punch); color: #fff; border: 3px solid var(--ink); display: grid; place-items: center; font-family: 'Archivo Black', sans-serif; font-size: 15px; }
+  .stepcard h4 { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; font-size: 14.5px; margin: 8px 0 8px; }
+  .stepcard p { font-size: 14px; margin: 0; }
+
+  footer { background: var(--ink); color: var(--foam); padding: 36px 24px; text-align: center; font-size: 13.5px; }
+  footer .display { font-size: 20px; margin-bottom: 6px; color: var(--sun); }
+
+  @media print {
+    body { background: #fff; }
+    .stepcard, nav.toc, .callout, table { box-shadow: none; }
+    header.hero { padding: 30px 24px; }
+    section { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-wrap">
+    <div class="eyebrow">White Salmon Boat Library</div>
+    <h1 class="display">User guide:<br>how it all works</h1>
+    <p>The website, the member app, and the staff dashboard — explained for members, librarians, and admins. One system, open 24/7, with every safeguard built in.</p>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <div class="t">Contents</div>
+  <ol>
+    <li><a href="#big-picture"><span class="n">01</span>The big picture</a></li>
+    <li><a href="#members"><span class="n">02</span>For members</a></li>
+    <li><a href="#staff"><span class="n">03</span>For librarians</a></li>
+    <li><a href="#admins"><span class="n">04</span>For admins</a></li>
+    <li><a href="#automation"><span class="n">05</span>Behind the scenes</a></li>
+    <li><a href="#quickref"><span class="n">06</span>Quick reference</a></li>
+  </ol>
+</nav>
+
+<section id="big-picture">
+  <h2><span class="num">01</span>The big picture</h2>
+  <div class="rule"></div>
+  <p>The system has three parts that work together:</p>
+  <div class="tablewrap"><table>
+    <tr><th>Part</th><th>Who uses it</th><th>What it does</th></tr>
+    <tr><td><strong>Marketing site</strong></td><td>The public</td><td>The pitch: what the library is, the river rules, become-a-member, volunteer and donate calls to action.</td></tr>
+    <tr><td><strong>Member app</strong></td><td>Members</td><td>Self-serve everything: join with the waiver, check out gear 24/7, get the shed code, return with a condition report, claim volunteer shifts.</td></tr>
+    <tr><td><strong>Staff dashboard</strong></td><td>Librarians &amp; admins</td><td>The same app with more doors: inventory, repairs, member roster, checkout board, schedule, incidents, settings.</td></tr>
+  </table></div>
+  <div class="callout key">
+    <div class="cap">The core idea</div>
+    The shed stays open 24/7 with nobody behind a counter, because every safeguard the paper system relied on a human for — the waiver, the checkout board, the buddy rule, the honesty about damage — is enforced by the software instead.
+  </div>
+</section>
+
+<section id="members">
+  <h2><span class="num">02</span>For members</h2>
+  <div class="rule"></div>
+
+  <h3>Joining the library</h3>
+  <ol class="steps">
+    <li>On the website, choose <strong>Become a member</strong> — it's free.</li>
+    <li>Fill in your contact info, an <strong>emergency contact</strong> (required), and your whitewater experience level. Be honest — "new to whitewater" just means the app will ask who you're paddling with.</li>
+    <li>Read the <strong>liability waiver</strong> and sign it by typing your full legal name. <span class="hl">There is no membership without a signed waiver</span> — the system won't create the account.</li>
+    <li>You'll get a welcome email with the orientation schedule. Orientations are Tuesdays, 5:30pm at the shed (The Missing Corner, BZ Corner — across from the Mini Mart). New paddlers: come to one before your first checkout.</li>
+  </ol>
+
+  <h3>Checking out gear</h3>
+  <div class="stepgrid">
+    <div class="stepcard"><span class="n">1</span><h4>Pick your gear</h4><p>Everything available right now, by category. Each item shows the code on its physical tag, brand/model, color, size, and condition — everything the paper checkout board required.</p></div>
+    <div class="stepcard"><span class="n">2</span><h4>Pick a return date</h4><p>The rental period is 3 days; up to 9 days for multi-day and out-of-town trips (with a trip note). Tell us if gear is leaving a 100-mile radius.</p></div>
+    <div class="stepcard"><span class="n">3</span><h4>The agreement</h4><p>Four checkboxes, each a real library policy: sober on the river, PFD on the water, within your skill level (no Class V), honest gear inspection and damage reports.</p></div>
+  </div>
+  <p>Hit the button and <span class="hl">your shed access code appears on screen</span> — and lands in your email. Take exactly the gear on your checkout, close the shed, scramble the lock.</p>
+  <div class="callout safe">
+    <div class="cap">The app will stop you if…</div>
+    …you have overdue gear out · your waiver is out of date (re-sign and continue) · your membership is suspended · someone grabbed an item seconds before you (refresh and re-pick) · any acknowledgment is missing.
+  </div>
+
+  <h3>While you're out</h3>
+  <p><strong>My Gear</strong> shows everything you have out, the due date, and your shed code in case you forget it. You'll get a friendly reminder email the day before gear is due.</p>
+
+  <h3>Returning gear</h3>
+  <ol class="steps">
+    <li>Bring everything back clean and drained.</li>
+    <li>In <strong>My Gear</strong>, hit <strong>Return gear</strong> and rate each item: <em>Good shape</em> or <em>Damaged</em>.</li>
+    <li>Damaged items need a short description — mandatory, and here's the deal: <span class="hl">nobody is ever charged for honestly reported damage.</span> Your note goes straight to the repair queue so the next member never takes out unsafe gear.</li>
+  </ol>
+  <p>Overdue gear blocks new checkouts and triggers reminder emails (day before, day after, and a week after — at which point a librarian is notified). Need more time? Ask — extensions take seconds.</p>
+
+  <h3>Volunteering</h3>
+  <p>The <strong>Volunteer</strong> page lists upcoming shifts — orientation nights, repair nights, inventory audits. <strong>Claim shift</strong> to sign up, <strong>Drop shift</strong> if plans change. Shifts show who else is coming and close when full.</p>
+</section>
+
+<section id="staff">
+  <h2><span class="num">03</span>For librarians</h2>
+  <div class="rule"></div>
+  <p>Staff accounts see the member app plus the operational pages.</p>
+
+  <h3>Dashboard</h3>
+  <p>The at-a-glance page: gear available / checked out / overdue / in repair, active members, open incidents, everything currently out with due dates, the repair queue, and upcoming shifts. Every tile is clickable.</p>
+
+  <h3>Inventory</h3>
+  <ul>
+    <li><strong>Add or edit gear</strong> — code (write it on the physical item), category, brand/model, color, size, condition.</li>
+    <li><strong>Log issue</strong> — <em>minor</em> keeps the item in circulation; <em>major/unusable</em> pulls it automatically.</li>
+    <li><strong>Pull / Restore</strong> — take an item out of circulation (reason required; members just see "In for repair") or put it back.</li>
+    <li><strong>Repairs tab</strong> — the queue. Member damage reports land here automatically; resolving a ticket can return the item to service in the same action.</li>
+  </ul>
+
+  <h3>Members</h3>
+  <p>The roster shows waiver status, orientation status, experience level, gear out, and overdues. Click into a member for full history, then:</p>
+  <ul>
+    <li><strong>Mark orientation done</strong> after a Tuesday session</li>
+    <li><strong>Suspend / Reinstate</strong> — reason required; suspended members can't check out</li>
+    <li><strong>Terminate</strong> for policy violations — also disables their login</li>
+  </ul>
+
+  <h3>Checkouts</h3>
+  <p>The digital checkout board — Active, Overdue, Returned, and the <strong>Code log</strong> (every access code ever issued, to whom, when).</p>
+  <ul>
+    <li><strong>Extend</strong> — new due date; reminder emails re-arm automatically.</li>
+    <li><strong>Force return</strong> — for gear back on the shelf but never marked returned, or lost gear. Items go back to circulation or to inspection, your choice.</li>
+    <li><strong>Today's door code</strong> — in daily-code mode, the code to program into the shed keypad shows here.</li>
+  </ul>
+
+  <h3>Schedule &amp; Incidents</h3>
+  <p>Create volunteer shifts and watch signups fill. Log injuries, near-misses, gear damage, and policy violations with status tracking and follow-up notes.</p>
+</section>
+
+<section id="admins">
+  <h2><span class="num">04</span>For admins</h2>
+  <div class="rule"></div>
+
+  <h3>Users &amp; roles</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Role</th><th>Can do</th></tr>
+    <tr><td><code>admin</code></td><td>Everything, including users and settings</td></tr>
+    <tr><td><code>librarian</code></td><td>All staff operations</td></tr>
+    <tr><td><code>volunteer</code> / <code>member</code></td><td>Self-service + shift signup</td></tr>
+    <tr><td><code>disabled</code></td><td>Nothing (used for terminated memberships)</td></tr>
+  </table></div>
+  <p>Role changes take effect immediately — the system re-checks the database on every request. Password resets happen here too. Safety rail: you can't demote or disable your own admin account.</p>
+
+  <h3>Settings (live — changes apply instantly)</h3>
+  <ul>
+    <li><strong>Rental periods</strong> — standard (3 days) and maximum (9 days), max items per checkout</li>
+    <li><strong>Door code mode</strong> — <code>per_checkout</code> (each checkout gets a random code) or <code>daily</code> (one code per day; staff see it for programming the keypad, members only after a valid check-in)</li>
+    <li><strong>Waiver version</strong> — bump the number and <span class="hl">every member must re-sign before their next checkout</span>. Use whenever the waiver text changes.</li>
+    <li><strong>Notifications kill switch</strong> — pauses every outbound email at once, with a reason</li>
+    <li><strong>Orientation info</strong>, library address, staff digest email</li>
+  </ul>
+
+  <h3>The paper trail</h3>
+  <p>Three logs, all in the app: the <strong>audit log</strong> (every admin action — who, what, when), the <strong>notification log</strong> (every email sent or suppressed, and why), and the <strong>access code log</strong> (every shed code issued).</p>
+
+  <h3>Donations</h3>
+  <p>The library accepts Venmo (@TheBoatLibrary), PayPal, and cash or checks in the secure drop box at the facility (payable to "White Salmon Boat Library") — donations are tax-deductible. The website's card option opens a Stripe-hosted checkout; card details never touch the library's systems, and completed card donations appear for staff with totals.</p>
+</section>
+
+<section id="automation">
+  <h2><span class="num">05</span>Behind the scenes</h2>
+  <div class="rule"></div>
+  <ul>
+    <li><strong>Reminder emails</strong> run hourly, three waves per checkout, each sent at most once: due-soon (24h before) → overdue (past due; also blocks new checkouts) → week-overdue (firmer note + staff digest). Extending a due date resets the waves.</li>
+    <li><strong>Access codes</strong> — every issuance is logged. Per-checkout mode gives each member their own random 6-digit code; daily mode derives one code per day from a secret key, so staff can program the lock ahead of time.</li>
+    <li><strong>Damage triage</strong> — a "damaged" report instantly pulls the item from circulation and opens a repair ticket. There is no gap where unsafe gear is borrowable.</li>
+  </ul>
+  <div class="callout safe">
+    <div class="cap">Security, in one paragraph</div>
+    Passwords are properly hashed, logins are rate-limited, staff pages verify the caller's role against the database on every request, members can only touch their own checkouts, and every sensitive action lands in a log. A full security review ships with the codebase.
+  </div>
+</section>
+
+<section id="quickref">
+  <h2><span class="num">06</span>Quick reference</h2>
+  <div class="rule"></div>
+  <div class="tablewrap"><table>
+    <tr><th>I want to…</th><th>Where</th></tr>
+    <tr><td>Join the library</td><td>Website → Become a member</td></tr>
+    <tr><td>Check out gear</td><td>App → Check Out Gear</td></tr>
+    <tr><td>See my shed code again</td><td>App → My Gear</td></tr>
+    <tr><td>Return gear / report damage</td><td>App → My Gear → Return gear</td></tr>
+    <tr><td>Volunteer for a shift</td><td>App → Volunteer</td></tr>
+    <tr><td>Add a new boat to inventory</td><td>Staff → Inventory → + Add gear</td></tr>
+    <tr><td>Handle a damage report</td><td>Staff → Inventory → Repairs</td></tr>
+    <tr><td>Extend someone's loan</td><td>Staff → Checkouts → Extend</td></tr>
+    <tr><td>Mark orientation complete</td><td>Staff → Members → (member)</td></tr>
+    <tr><td>Suspend a member</td><td>Staff → Members → (member) → Suspend</td></tr>
+    <tr><td>Post an orientation night</td><td>Staff → Schedule → + New shift</td></tr>
+    <tr><td>Change loan length / door code mode</td><td>Admin → Settings</td></tr>
+    <tr><td>Force everyone to re-sign the waiver</td><td>Admin → Settings → bump Waiver version</td></tr>
+    <tr><td>Pause all emails</td><td>Admin → Settings → kill switch</td></tr>
+    <tr><td>Add a librarian account</td><td>Admin → Users → + Add user</td></tr>
+  </table></div>
+</section>
+
+</div>
+
+<footer>
+  <div class="display">See you at the put-in</div>
+  White Salmon Boat Library · The Missing Corner, BZ Corner, WA · Free gear, real whitewater
+</footer>
+
+
+<!-- rev-mode -->
+<!-- WSBL client review mode: inline text editing + notes + exportable summary.
+     Appended to the static demo pages (site + user guide) at build time. -->
+<style>
+  #rev-bar { position: fixed; bottom: 18px; right: 18px; z-index: 9999; display: flex; gap: 8px; font-family: system-ui, sans-serif; }
+  #rev-bar button { border: none; border-radius: 999px; padding: 10px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); background: #10282B; color: #fff; }
+  #rev-bar button.on { background: #0E7C86; }
+  #rev-bar button.count { background: #fff; color: #10282B; }
+  body.rev-editing [data-rev-id] { outline: 1px dashed rgba(14,124,134,0.5); outline-offset: 2px; min-height: 1em; }
+  body.rev-noting * { cursor: crosshair !important; }
+  #rev-tray { position: fixed; bottom: 70px; right: 18px; z-index: 9999; width: min(420px, calc(100vw - 36px)); max-height: 65vh; overflow-y: auto; background: #fff; color: #10282B; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); padding: 18px; font-family: system-ui, sans-serif; font-size: 13.5px; display: none; }
+  #rev-tray h3 { font-size: 15px; margin: 0 0 10px; }
+  #rev-tray .item { border-bottom: 1px solid #eee; padding: 8px 0; }
+  #rev-tray .item .loc { color: #0E7C86; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #rev-tray .item .del { float: right; background: none; border: none; color: #D93025; cursor: pointer; font-size: 12px; }
+  #rev-tray .before { color: #999; text-decoration: line-through; }
+  #rev-tray .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  #rev-tray .actions button { border: 1px solid #ddd; background: #f7f7f7; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-tray .actions button.primary { background: #0E7C86; color: #fff; border-color: #0E7C86; }
+  #rev-note-pop { position: fixed; z-index: 10000; background: #fff; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); padding: 14px; width: min(340px, calc(100vw - 40px)); font-family: system-ui, sans-serif; display: none; }
+  #rev-note-pop .ctx { font-size: 11.5px; color: #777; margin-bottom: 8px; max-height: 3em; overflow: hidden; }
+  #rev-note-pop textarea { width: 100%; min-height: 70px; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-family: inherit; font-size: 13.5px; box-sizing: border-box; }
+  #rev-note-pop .row { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+  #rev-note-pop .row button { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-note-pop .save { background: #0E7C86; color: #fff; }
+  #rev-note-pop .cancel { background: #eee; }
+  .rev-pin { position: absolute; z-index: 9998; background: #F2B90F; color: #10282B; border-radius: 999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font: 700 12px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,0.3); pointer-events: none; }
+  @media print { #rev-bar, #rev-tray, .rev-pin { display: none !important; } }
+</style>
+<div id="rev-bar">
+  <button id="rev-edit">✏️ Edit text</button>
+  <button id="rev-note">📝 Add note</button>
+  <button id="rev-open" class="count">Review (0)</button>
+</div>
+<div id="rev-tray"></div>
+<div id="rev-note-pop"><div class="ctx"></div><textarea placeholder="What should change here?"></textarea><div class="row"><button class="cancel">Cancel</button><button class="save">Save note</button></div></div>
+<script>
+(function () {
+  var PAGE = document.title || location.pathname;
+  var KEY = 'wsbl_review_' + location.pathname.replace(/[^a-z0-9]/gi, '_');
+  // Feedback delivery: formsubmit.co relays submissions to this inbox (no
+  // account needed; the first send triggers a one-time activation email).
+  // After activation, formsubmit provides a random alias endpoint — swap it
+  // in here to keep the raw address out of the page source.
+  var REV_EMAIL = 'taylordwm@gmail.com';
+  var REV_ENDPOINT = 'https://formsubmit.co/ajax/' + REV_EMAIL;
+
+  // Tag every text-bearing element so edits can be diffed against the original.
+  var seq = 0, orig = {};
+  var SEL = 'h1,h2,h3,h4,p,li,td,th,b,a,button,label,.eyebrow,.note,.cap,span';
+  Array.prototype.forEach.call(document.querySelectorAll(SEL), function (el) {
+    if (el.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    if (el.querySelector(SEL) && el.tagName !== 'P' && el.tagName !== 'LI' && el.tagName !== 'A' && el.tagName !== 'BUTTON') return;
+    var t = (el.innerText || '').trim();
+    if (!t) return;
+    var id = 'r' + seq++;
+    el.setAttribute('data-rev-id', id);
+    orig[id] = t;
+  });
+
+  function sectionOf(el) {
+    var sec = el.closest('section, header, footer, nav');
+    if (!sec) return 'page';
+    var h = sec.querySelector('h1,h2,h3');
+    return (sec.id || (h ? h.innerText.trim().slice(0, 40) : sec.tagName.toLowerCase()));
+  }
+
+  var state = { edits: {}, notes: [] };
+  try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
+  // Re-apply saved edits (skip any whose element no longer matches — page was updated)
+  Object.keys(state.edits || {}).forEach(function (id) {
+    var el = document.querySelector('[data-rev-id="' + id + '"]');
+    if (el && state.edits[id].before === orig[id]) el.innerText = state.edits[id].after;
+    else delete state.edits[id];
+  });
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(state)); refresh(); }
+
+  var bar = document.getElementById('rev-bar');
+  var editBtn = document.getElementById('rev-edit');
+  var noteBtn = document.getElementById('rev-note');
+  var openBtn = document.getElementById('rev-open');
+  var tray = document.getElementById('rev-tray');
+  var pop = document.getElementById('rev-note-pop');
+  var editing = false, noting = false, pendingTarget = null;
+
+  function collectEdits() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rev-id]'), function (el) {
+      var id = el.getAttribute('data-rev-id');
+      var now = (el.innerText || '').trim();
+      if (now !== orig[id]) state.edits[id] = { section: sectionOf(el), before: orig[id], after: now };
+      else delete state.edits[id];
+    });
+    save();
+  }
+
+  editBtn.onclick = function () {
+    editing = !editing;
+    if (editing && noting) noteBtn.onclick();
+    document.body.contentEditable = editing ? 'true' : 'false';
+    document.body.classList.toggle('rev-editing', editing);
+    editBtn.classList.toggle('on', editing);
+    editBtn.textContent = editing ? '✅ Done editing' : '✏️ Edit text';
+    if (!editing) collectEdits();
+  };
+  // While editing, clicking links shouldn't navigate away
+  document.addEventListener('click', function (e) {
+    if (editing && e.target.closest('a')) e.preventDefault();
+  }, true);
+
+  noteBtn.onclick = function () {
+    noting = !noting;
+    if (noting && editing) editBtn.onclick();
+    document.body.classList.toggle('rev-noting', noting);
+    noteBtn.classList.toggle('on', noting);
+    noteBtn.textContent = noting ? '❌ Cancel note' : '📝 Add note';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!noting || e.target.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    e.preventDefault(); e.stopPropagation();
+    pendingTarget = e.target.closest('[data-rev-id]') || e.target;
+    pop.querySelector('.ctx').textContent = 'On: “' + ((pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90)) + '”';
+    pop.style.display = 'block';
+    var x = Math.min(e.clientX, window.innerWidth - 360), y = Math.min(e.clientY, window.innerHeight - 200);
+    pop.style.left = Math.max(10, x) + 'px'; pop.style.top = Math.max(10, y) + 'px';
+    pop.querySelector('textarea').value = '';
+    pop.querySelector('textarea').focus();
+  }, true);
+
+  pop.querySelector('.cancel').onclick = function () { pop.style.display = 'none'; };
+  pop.querySelector('.save').onclick = function () {
+    var text = pop.querySelector('textarea').value.trim();
+    if (text) {
+      state.notes.push({
+        section: sectionOf(pendingTarget),
+        context: (pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90),
+        note: text, ts: new Date().toLocaleString(),
+      });
+      save(); drawPins();
+    }
+    pop.style.display = 'none';
+    noteBtn.onclick();
+  };
+
+  function drawPins() {
+    Array.prototype.forEach.call(document.querySelectorAll('.rev-pin'), function (p) { p.remove(); });
+    state.notes.forEach(function (n, i) {
+      var el = null;
+      Array.prototype.some.call(document.querySelectorAll('[data-rev-id]'), function (cand) {
+        if ((cand.innerText || '').trim().slice(0, 90) === n.context) { el = cand; return true; }
+        return false;
+      });
+      if (!el) return;
+      var pin = document.createElement('div');
+      pin.className = 'rev-pin';
+      pin.textContent = i + 1;
+      var r = el.getBoundingClientRect();
+      pin.style.left = (window.scrollX + r.right + 4) + 'px';
+      pin.style.top = (window.scrollY + r.top - 4) + 'px';
+      document.body.appendChild(pin);
+    });
+  }
+
+  function summary() {
+    var lines = ['# Review feedback — ' + PAGE, '_' + new Date().toLocaleString() + ' · ' + location.href + '_', ''];
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      lines.push('## Text edits (' + ids.length + ')');
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        lines.push('- **[' + e.section + ']** “' + e.before + '” → “' + e.after + '”');
+      });
+      lines.push('');
+    }
+    if (state.notes.length) {
+      lines.push('## Notes (' + state.notes.length + ')');
+      state.notes.forEach(function (n, i) {
+        lines.push((i + 1) + '. **[' + n.section + ']** on “' + n.context + '”: ' + n.note);
+      });
+    }
+    if (!ids.length && !state.notes.length) lines.push('(no changes or notes yet)');
+    return lines.join('\n');
+  }
+
+  function refresh() {
+    var count = Object.keys(state.edits).length + state.notes.length;
+    openBtn.textContent = 'Review (' + count + ')';
+    if (tray.style.display === 'block') renderTray();
+  }
+
+  function renderTray() {
+    var html = '<h3>Review feedback</h3>';
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;">Text edits</div>';
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        html += '<div class="item"><button class="del" data-edit="' + id + '">remove</button><span class="loc">' + e.section + '</span><br><span class="before">' + e.before.slice(0, 70) + '</span><br>→ ' + e.after.slice(0, 90) + '</div>';
+      });
+    }
+    if (state.notes.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;margin-top:8px;">Notes</div>';
+      state.notes.forEach(function (n, i) {
+        html += '<div class="item"><button class="del" data-note="' + i + '">remove</button><span class="loc">' + n.section + '</span> on “' + n.context.slice(0, 50) + '”<br>' + n.note + '</div>';
+      });
+    }
+    if (!ids.length && !state.notes.length) html += '<p style="color:#888">Nothing yet. Use ✏️ Edit text to change wording in place, or 📝 Add note to comment on anything.</p>';
+    html += '<div class="actions"><button class="primary" id="rev-send">📤 Send feedback</button><button id="rev-copy">Copy</button><button id="rev-dl">Download</button><button id="rev-clear">Clear all</button></div><div id="rev-send-msg" style="font-size:12px;color:#888;margin-top:8px;"></div>';
+    tray.innerHTML = html;
+    tray.querySelectorAll('.del').forEach(function (b) {
+      b.onclick = function () {
+        if (b.dataset.edit) {
+          var el = document.querySelector('[data-rev-id="' + b.dataset.edit + '"]');
+          if (el) el.innerText = state.edits[b.dataset.edit].before;
+          delete state.edits[b.dataset.edit];
+        } else { state.notes.splice(parseInt(b.dataset.note), 1); drawPins(); }
+        save();
+      };
+    });
+    document.getElementById('rev-send').onclick = function () {
+      var btn = document.getElementById('rev-send');
+      var msg = document.getElementById('rev-send-msg');
+      var text = summary();
+      btn.textContent = 'Sending…'; btn.disabled = true;
+      fetch(REV_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ _subject: 'WSBL demo feedback — ' + PAGE, feedback: text }),
+      }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function () {
+        btn.textContent = 'Sent ✓'; btn.disabled = false;
+        msg.textContent = 'Feedback sent. Keep editing and send again any time.';
+      }).catch(function () {
+        btn.textContent = '📤 Send feedback'; btn.disabled = false;
+        msg.textContent = 'Direct send unavailable — opening an email instead.';
+        location.href = 'mailto:' + REV_EMAIL + '?subject=' + encodeURIComponent('WSBL demo feedback — ' + PAGE) + '&body=' + encodeURIComponent(text.slice(0, 1800));
+      });
+    };
+    document.getElementById('rev-copy').onclick = function () {
+      var text = summary();
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(
+        function () { document.getElementById('rev-copy').textContent = 'Copied ✓'; },
+        function () { window.prompt('Copy this:', text); });
+    };
+    document.getElementById('rev-dl').onclick = function () {
+      var a = document.createElement('a');
+      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(summary());
+      a.download = 'wsbl-review-feedback.txt';
+      a.click();
+    };
+    document.getElementById('rev-clear').onclick = function () {
+      if (!window.confirm('Clear all edits and notes on this page?')) return;
+      Object.keys(state.edits).forEach(function (id) {
+        var el = document.querySelector('[data-rev-id="' + id + '"]');
+        if (el) el.innerText = state.edits[id].before;
+      });
+      state = { edits: {}, notes: [] };
+      save(); drawPins();
+    };
+  }
+
+  openBtn.onclick = function () {
+    tray.style.display = tray.style.display === 'block' ? 'none' : 'block';
+    if (tray.style.display === 'block') renderTray();
+  };
+
+  window.addEventListener('scroll', drawPins);
+  window.addEventListener('resize', drawPins);
+  refresh(); drawPins();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>White Salmon Boat Library — Free community whitewater gear</title>
+<meta name="description" content="A local, donation-based non-profit in the heart of the White Salmon kayaking community. Free gear and boats for members — sign up online, check out 24/7.">
+<meta name="theme-color" content="#0E7C86">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2230%22 fill=%22%230E7C86%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 text-anchor=%22middle%22>🛶</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1C2B2D;
+    --teal: #0E7C86;
+    --teal-dark: #0A5D65;
+    --paper: #FFFFFF;
+    --mist: #F2F6F6;
+    --line: #E1E8E8;
+    --muted: #5C6F71;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Archivo', system-ui, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.65; }
+  a { color: var(--teal); }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; }
+  .btn {
+    display: inline-block; padding: 12px 26px; border-radius: 8px; font-weight: 600; font-size: 15px;
+    text-decoration: none; cursor: pointer; border: 1.5px solid transparent; font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-quiet { background: transparent; color: var(--teal); border-color: var(--teal); }
+  .btn-quiet:hover { background: var(--mist); }
+
+  /* ── Nav ── */
+  nav {
+    position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; gap: 16px;
+  }
+  nav .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+  nav .brand .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--teal); display: grid; place-items: center; font-size: 20px; }
+  nav .brand span { font-weight: 700; font-size: 16px; line-height: 1.15; }
+  nav .links { display: flex; gap: 26px; align-items: center; font-size: 15px; }
+  nav .links a { text-decoration: none; color: var(--ink); font-weight: 500; }
+  nav .links a:hover { color: var(--teal); }
+  nav .links .btn { padding: 9px 18px; font-size: 14px; }
+  @media (max-width: 760px) { nav .links a:not(.btn) { display: none; } }
+
+  /* ── Hero ── */
+  header.hero {
+    background: linear-gradient(180deg, var(--mist) 0%, #fff 100%);
+    padding: 84px 28px 72px; text-align: center;
+  }
+  .hero h1 { font-size: clamp(32px, 5.5vw, 52px); font-weight: 700; max-width: 760px; margin: 0 auto 18px; }
+  .hero p { font-size: 18px; color: var(--muted); max-width: 640px; margin: 0 auto 30px; }
+  .hero .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hero .note { margin-top: 22px; font-size: 14px; color: var(--muted); }
+
+  section { padding: 72px 28px; }
+  section.alt { background: var(--mist); }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  .eyebrow { color: var(--teal); font-weight: 700; text-transform: uppercase; font-size: 12.5px; letter-spacing: 0.09em; margin-bottom: 10px; }
+  h2 { font-size: clamp(24px, 3.6vw, 32px); font-weight: 700; margin-bottom: 14px; }
+  .lede { font-size: 16.5px; color: var(--muted); max-width: 660px; }
+
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 36px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+  .alt .card { box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .card p, .card li { font-size: 15px; color: var(--muted); }
+  .card .step { width: 32px; height: 32px; border-radius: 50%; background: var(--teal); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px; margin-bottom: 14px; }
+
+  ul.plain { list-style: none; }
+  ul.plain li { padding: 9px 0 9px 26px; position: relative; border-bottom: 1px solid var(--line); }
+  ul.plain li:last-child { border-bottom: none; }
+  ul.plain li::before { content: '✓'; position: absolute; left: 0; color: var(--teal); font-weight: 700; }
+
+  .gear-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .gear-list span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 14px; color: var(--ink); }
+  .alt .gear-list span { background: #fff; }
+
+  .policy { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .policy:last-child { border-bottom: none; }
+  .policy .ic { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; background: var(--mist); display: grid; place-items: center; font-size: 17px; }
+  .policy p { font-size: 15px; }
+  .policy p b { display: block; color: var(--ink); }
+  .policy p span { color: var(--muted); }
+
+  .visit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 32px; }
+
+  .donate-amounts { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 18px; }
+  .amt { padding: 9px 18px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; font-weight: 600; font-size: 15px; cursor: pointer; font-family: inherit; color: var(--ink); }
+  .amt.on { border-color: var(--teal); background: var(--mist); color: var(--teal); }
+  #donate-msg { font-size: 13.5px; margin-top: 10px; color: var(--muted); }
+
+  footer { background: var(--ink); color: #E9EFEF; padding: 56px 28px 36px; }
+  footer .wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; }
+  footer h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #8FB8BC; margin-bottom: 12px; }
+  footer p, footer a { font-size: 14px; line-height: 1.8; color: #E9EFEF; }
+  footer .fin { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 18px; padding-top: 18px; font-size: 12.5px; color: #8FB8BC; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="#top"><span class="mark">🛶</span><span>White Salmon<br>Boat Library</span></a>
+  <div class="links">
+    <a href="#membership">Membership</a>
+    <a href="#gear">The Gear</a>
+    <a href="#policies">Policies</a>
+    <a href="#visit">Visit</a>
+    <a href="#support">Support</a>
+    <a class="btn btn-primary" href="/app/">Member sign in</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <h1>Free boats and gear for the White Salmon community</h1>
+  <p>The White Salmon Boat Library is a local, donation-based non-profit in the heart of the White Salmon kayaking community. We lend quality whitewater gear to our members free of charge, so anyone can get on the river — financially risk-free.</p>
+  <div class="ctas">
+    <a class="btn btn-primary" href="/app/#/join">Become a member — it's free</a>
+    <a class="btn btn-quiet" href="#membership">How it works</a>
+  </div>
+  <div class="note">Open 24/7 for members · The Missing Corner, BZ Corner, WA</div>
+</header>
+
+<section id="mission">
+  <div class="wrap">
+    <div class="eyebrow">Our mission</div>
+    <h2>Everyone should have the opportunity to enjoy this sport</h2>
+    <p class="lede">We aspire to promote whitewater kayaking, cultivate a love of the outdoors, and minimize the social and economic barriers to river sports. The library offers newcomers access to gear and boats — and a way to integrate into the community that comes with them.</p>
+  </div>
+</section>
+
+<section class="alt" id="membership">
+  <div class="wrap">
+    <div class="eyebrow">Membership</div>
+    <h2>Joining is free and takes a few minutes</h2>
+    <p class="lede">Membership requires a signed waiver and a member profile — both are now completed online. Once you're signed up, you can check out gear any time.</p>
+    <div class="cols">
+      <div class="card">
+        <div class="step">1</div>
+        <h3>Sign up online</h3>
+        <p>Create your member profile and sign the liability waiver electronically. Please tell us honestly about your whitewater experience — it helps us keep everyone safe.</p>
+      </div>
+      <div class="card">
+        <div class="step">2</div>
+        <h3>Come to an orientation</h3>
+        <p>New Member Orientations are Tuesdays at 5:30pm at the library — we'll show you the facility, the gear, and how checkout works. Upcoming orientation dates are in the member app — <a href="/app/#/shifts">reserve your spot</a> after you sign up.</p>
+      </div>
+      <div class="card">
+        <div class="step">3</div>
+        <h3>Check out gear, any time</h3>
+        <p>The library is open 24/7 for members. Choose your gear online, complete the checkout, and you'll receive the door code right away. Rentals are 3 days (up to 9 for multi-day and out-of-town trips).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gear">
+  <div class="wrap">
+    <div class="eyebrow">The gear</div>
+    <h2>30 full sets of whitewater equipment</h2>
+    <p class="lede">All of it donated, all of it maintained by volunteers, all of it free to borrow. Old boats, new boats, full slices, half slices, creekers and inflatable kayaks — plus everything that goes with them:</p>
+    <div class="gear-list">
+      <span>Whitewater kayaks</span><span>Inflatable kayaks</span><span>Paddles</span><span>PFDs</span>
+      <span>Helmets</span><span>Spray skirts</span><span>Drytops</span><span>Throwbags</span>
+    </div>
+    <p class="lede" style="margin-top: 24px;">Live availability is in the member app — every item has an ID, a condition record, and an honest history.</p>
+  </div>
+</section>
+
+<section class="alt" id="policies">
+  <div class="wrap">
+    <div class="eyebrow">Library policies</div>
+    <h2>A few rules keep the library running</h2>
+    <p class="lede">All members agree to these when they join. Failure to comply can result in termination of membership.</p>
+    <div style="margin-top: 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 26px;">
+      <div class="policy"><div class="ic">🦺</div><p><b>Wear a PFD</b><span>All participants must wear a suitable personal flotation device while on the water.</span></p></div>
+      <div class="policy"><div class="ic">🌊</div><p><b>Boat within your skill level</b><span>No library equipment on Class V whitewater. If you're new to the sport, you must go with another person who can help you choose safe river sections and use the gear properly.</span></p></div>
+      <div class="policy"><div class="ic">🚫</div><p><b>Zero tolerance for drugs and alcohol</b><span>No drug or alcohol use when on the river with library gear.</span></p></div>
+      <div class="policy"><div class="ic">📋</div><p><b>Rental periods</b><span>The rental period is 3 days. Longer rentals — up to the 9-day maximum — are reserved for multi-day runs and out-of-town trips, and must be noted at checkout. Gear leaving a 100-mile radius of the library? Tell us where it's going.</span></p></div>
+      <div class="policy"><div class="ic">🔧</div><p><b>Care for the gear</b><span>Inspect your gear for defects before use — torn, ripped, or broken gear goes in the repair bin. Report any damage when you return, and put everything back in its correct location. Never share your access code.</span></p></div>
+      <div class="policy"><div class="ic">💙</div><p><b>Respect everyone</b><span>The library does not discriminate on the basis of race, gender, sexual orientation, religion, gender identity, or economic status — and expects the same of all members. Zero tolerance for any sexual, physical, emotional, or verbal harassment.</span></p></div>
+      <div class="policy"><div class="ic">⚖️</div><p><b>Borrowing is a privilege</b><span>Failure to adhere to these policies will result in termination of library membership. A request for re-admittance can be made in the following year.</span></p></div>
+    </div>
+    <p style="margin-top: 18px; font-size: 14.5px;"><a href="/app/#/policies">Read the complete policies →</a></p>
+  </div>
+</section>
+
+<section id="visit">
+  <div class="wrap">
+    <div class="eyebrow">Visit us</div>
+    <h2>Find the library</h2>
+    <div class="visit">
+      <div class="card">
+        <h3>📍 Location</h3>
+        <p>The Missing Corner community center<br>BZ Corner, Washington<br>Directly across the road from the Mini Mart — take a right on Glenwood Hwy off the 141 and we're on the immediate right.</p>
+      </div>
+      <div class="card">
+        <h3>🕐 Hours</h3>
+        <p>Open 24/7 for WSBL members via the door code you receive at checkout.</p>
+      </div>
+      <div class="card">
+        <h3>👋 New Member Orientation</h3>
+        <p>Tuesdays at 5:30pm at the library. Come meet the community — no gear or experience required. <a href="/app/#/shifts">See upcoming dates in the app →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="support">
+  <div class="wrap">
+    <div class="eyebrow">Support the library</div>
+    <h2>The library runs on donations and volunteers</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>Donate</h3>
+        <p>Every dollar goes toward gear repair, replacement parts, and keeping the library free for everyone. Donations are tax-deductible.</p>
+        <p style="margin-top: 10px;">
+          <b>Venmo:</b> @TheBoatLibrary<br>
+          <b>PayPal:</b> <a href="https://www.paypal.com/donate" target="_blank" rel="noopener">paypal.com/donate</a><br>
+          <b>Cash or check:</b> secure drop box at the library — checks payable to "White Salmon Boat Library"
+        </p>
+        <p style="margin-top: 14px; margin-bottom: 6px;"><b>Or donate by card:</b></p>
+        <div class="donate-amounts" id="amounts">
+          <button class="amt" data-cents="1000">$10</button>
+          <button class="amt on" data-cents="2500">$25</button>
+          <button class="amt" data-cents="5000">$50</button>
+          <button class="amt" data-cents="10000">$100</button>
+        </div>
+        <button class="btn btn-primary" id="donate-btn">Donate by card</button>
+        <div id="donate-msg"></div>
+      </div>
+      <div class="card">
+        <h3>Volunteer</h3>
+        <p>Help with orientations, gear repair nights, and inventory. Members can sign up for volunteer shifts right in the app.</p>
+        <p style="margin-top: 16px;"><a class="btn btn-quiet" href="/app/#/shifts">See volunteer shifts</a></p>
+      </div>
+      <div class="card">
+        <h3>Donate gear</h3>
+        <p>Quality used whitewater equipment finds a second life here. Bring it by during an orientation, or reach out first.</p>
+        <p style="margin-top: 16px;"><a class="btn btn-quiet" href="https://www.instagram.com/whitesalmonboatlibrary/" target="_blank" rel="noopener">Message us</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <h4>White Salmon Boat Library</h4>
+      <p>A local, donation-based non-profit in the heart of the White Salmon kayaking community.</p>
+    </div>
+    <div>
+      <h4>Visit</h4>
+      <p>The Missing Corner · BZ Corner, WA<br>Across from the Mini Mart<br>Open 24/7 for members</p>
+    </div>
+    <div>
+      <h4>Links</h4>
+      <p><a href="/app/">Member app</a><br><a href="/app/#/join">Become a member</a><br><a href="/app/#/policies">Library policies</a><br><a href="https://www.instagram.com/whitesalmonboatlibrary/" target="_blank" rel="noopener">Instagram</a></p>
+    </div>
+    <div class="fin">
+      <span>© White Salmon Boat Library</span>
+      <span>Gear is lent free of charge to members with a signed waiver.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const APP_URL = new URLSearchParams(location.search).get('app') || './app/';
+  document.querySelectorAll('a[href^="/app/"]').forEach(a => {
+    a.href = APP_URL + a.getAttribute('href').slice('/app/'.length);
+  });
+
+  const API_URL = window.WSBL_API_URL || 'https://wsbl-api.workers.dev';
+  let cents = 2500;
+  document.querySelectorAll('.amt').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.amt').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    cents = parseInt(b.dataset.cents);
+  }));
+  document.getElementById('donate-btn').addEventListener('click', async () => {
+    const msg = document.getElementById('donate-msg');
+    msg.textContent = 'Opening secure checkout…';
+    try {
+      const res = await fetch(API_URL + '/api/public/donate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount_cents: cents }),
+      });
+      const data = await res.json();
+      if (res.ok && data.url) { location.href = data.url; }
+      else { msg.textContent = data.error || 'Online donations are coming soon — you can also donate in person at an orientation.'; }
+    } catch {
+      msg.textContent = 'Online donations are coming soon — you can also donate in person at an orientation.';
+    }
+  });
+</script>
+
+<!-- rev-mode -->
+<!-- WSBL client review mode: inline text editing + notes + exportable summary.
+     Appended to the static demo pages (site + user guide) at build time. -->
+<style>
+  #rev-bar { position: fixed; bottom: 18px; right: 18px; z-index: 9999; display: flex; gap: 8px; font-family: system-ui, sans-serif; }
+  #rev-bar button { border: none; border-radius: 999px; padding: 10px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); background: #10282B; color: #fff; }
+  #rev-bar button.on { background: #0E7C86; }
+  #rev-bar button.count { background: #fff; color: #10282B; }
+  body.rev-editing [data-rev-id] { outline: 1px dashed rgba(14,124,134,0.5); outline-offset: 2px; min-height: 1em; }
+  body.rev-noting * { cursor: crosshair !important; }
+  #rev-tray { position: fixed; bottom: 70px; right: 18px; z-index: 9999; width: min(420px, calc(100vw - 36px)); max-height: 65vh; overflow-y: auto; background: #fff; color: #10282B; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); padding: 18px; font-family: system-ui, sans-serif; font-size: 13.5px; display: none; }
+  #rev-tray h3 { font-size: 15px; margin: 0 0 10px; }
+  #rev-tray .item { border-bottom: 1px solid #eee; padding: 8px 0; }
+  #rev-tray .item .loc { color: #0E7C86; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #rev-tray .item .del { float: right; background: none; border: none; color: #D93025; cursor: pointer; font-size: 12px; }
+  #rev-tray .before { color: #999; text-decoration: line-through; }
+  #rev-tray .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  #rev-tray .actions button { border: 1px solid #ddd; background: #f7f7f7; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-tray .actions button.primary { background: #0E7C86; color: #fff; border-color: #0E7C86; }
+  #rev-note-pop { position: fixed; z-index: 10000; background: #fff; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); padding: 14px; width: min(340px, calc(100vw - 40px)); font-family: system-ui, sans-serif; display: none; }
+  #rev-note-pop .ctx { font-size: 11.5px; color: #777; margin-bottom: 8px; max-height: 3em; overflow: hidden; }
+  #rev-note-pop textarea { width: 100%; min-height: 70px; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-family: inherit; font-size: 13.5px; box-sizing: border-box; }
+  #rev-note-pop .row { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+  #rev-note-pop .row button { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-note-pop .save { background: #0E7C86; color: #fff; }
+  #rev-note-pop .cancel { background: #eee; }
+  .rev-pin { position: absolute; z-index: 9998; background: #F2B90F; color: #10282B; border-radius: 999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font: 700 12px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,0.3); pointer-events: none; }
+  @media print { #rev-bar, #rev-tray, .rev-pin { display: none !important; } }
+</style>
+<div id="rev-bar">
+  <button id="rev-edit">✏️ Edit text</button>
+  <button id="rev-note">📝 Add note</button>
+  <button id="rev-open" class="count">Review (0)</button>
+</div>
+<div id="rev-tray"></div>
+<div id="rev-note-pop"><div class="ctx"></div><textarea placeholder="What should change here?"></textarea><div class="row"><button class="cancel">Cancel</button><button class="save">Save note</button></div></div>
+<script>
+(function () {
+  var PAGE = document.title || location.pathname;
+  var KEY = 'wsbl_review_' + location.pathname.replace(/[^a-z0-9]/gi, '_');
+  // Feedback delivery: formsubmit.co relays submissions to this inbox (no
+  // account needed; the first send triggers a one-time activation email).
+  // After activation, formsubmit provides a random alias endpoint — swap it
+  // in here to keep the raw address out of the page source.
+  var REV_EMAIL = 'taylordwm@gmail.com';
+  var REV_ENDPOINT = 'https://formsubmit.co/ajax/' + REV_EMAIL;
+
+  // Tag every text-bearing element so edits can be diffed against the original.
+  var seq = 0, orig = {};
+  var SEL = 'h1,h2,h3,h4,p,li,td,th,b,a,button,label,.eyebrow,.note,.cap,span';
+  Array.prototype.forEach.call(document.querySelectorAll(SEL), function (el) {
+    if (el.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    if (el.querySelector(SEL) && el.tagName !== 'P' && el.tagName !== 'LI' && el.tagName !== 'A' && el.tagName !== 'BUTTON') return;
+    var t = (el.innerText || '').trim();
+    if (!t) return;
+    var id = 'r' + seq++;
+    el.setAttribute('data-rev-id', id);
+    orig[id] = t;
+  });
+
+  function sectionOf(el) {
+    var sec = el.closest('section, header, footer, nav');
+    if (!sec) return 'page';
+    var h = sec.querySelector('h1,h2,h3');
+    return (sec.id || (h ? h.innerText.trim().slice(0, 40) : sec.tagName.toLowerCase()));
+  }
+
+  var state = { edits: {}, notes: [] };
+  try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
+  // Re-apply saved edits (skip any whose element no longer matches — page was updated)
+  Object.keys(state.edits || {}).forEach(function (id) {
+    var el = document.querySelector('[data-rev-id="' + id + '"]');
+    if (el && state.edits[id].before === orig[id]) el.innerText = state.edits[id].after;
+    else delete state.edits[id];
+  });
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(state)); refresh(); }
+
+  var bar = document.getElementById('rev-bar');
+  var editBtn = document.getElementById('rev-edit');
+  var noteBtn = document.getElementById('rev-note');
+  var openBtn = document.getElementById('rev-open');
+  var tray = document.getElementById('rev-tray');
+  var pop = document.getElementById('rev-note-pop');
+  var editing = false, noting = false, pendingTarget = null;
+
+  function collectEdits() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rev-id]'), function (el) {
+      var id = el.getAttribute('data-rev-id');
+      var now = (el.innerText || '').trim();
+      if (now !== orig[id]) state.edits[id] = { section: sectionOf(el), before: orig[id], after: now };
+      else delete state.edits[id];
+    });
+    save();
+  }
+
+  editBtn.onclick = function () {
+    editing = !editing;
+    if (editing && noting) noteBtn.onclick();
+    document.body.contentEditable = editing ? 'true' : 'false';
+    document.body.classList.toggle('rev-editing', editing);
+    editBtn.classList.toggle('on', editing);
+    editBtn.textContent = editing ? '✅ Done editing' : '✏️ Edit text';
+    if (!editing) collectEdits();
+  };
+  // While editing, clicking links shouldn't navigate away
+  document.addEventListener('click', function (e) {
+    if (editing && e.target.closest('a')) e.preventDefault();
+  }, true);
+
+  noteBtn.onclick = function () {
+    noting = !noting;
+    if (noting && editing) editBtn.onclick();
+    document.body.classList.toggle('rev-noting', noting);
+    noteBtn.classList.toggle('on', noting);
+    noteBtn.textContent = noting ? '❌ Cancel note' : '📝 Add note';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!noting || e.target.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    e.preventDefault(); e.stopPropagation();
+    pendingTarget = e.target.closest('[data-rev-id]') || e.target;
+    pop.querySelector('.ctx').textContent = 'On: “' + ((pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90)) + '”';
+    pop.style.display = 'block';
+    var x = Math.min(e.clientX, window.innerWidth - 360), y = Math.min(e.clientY, window.innerHeight - 200);
+    pop.style.left = Math.max(10, x) + 'px'; pop.style.top = Math.max(10, y) + 'px';
+    pop.querySelector('textarea').value = '';
+    pop.querySelector('textarea').focus();
+  }, true);
+
+  pop.querySelector('.cancel').onclick = function () { pop.style.display = 'none'; };
+  pop.querySelector('.save').onclick = function () {
+    var text = pop.querySelector('textarea').value.trim();
+    if (text) {
+      state.notes.push({
+        section: sectionOf(pendingTarget),
+        context: (pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90),
+        note: text, ts: new Date().toLocaleString(),
+      });
+      save(); drawPins();
+    }
+    pop.style.display = 'none';
+    noteBtn.onclick();
+  };
+
+  function drawPins() {
+    Array.prototype.forEach.call(document.querySelectorAll('.rev-pin'), function (p) { p.remove(); });
+    state.notes.forEach(function (n, i) {
+      var el = null;
+      Array.prototype.some.call(document.querySelectorAll('[data-rev-id]'), function (cand) {
+        if ((cand.innerText || '').trim().slice(0, 90) === n.context) { el = cand; return true; }
+        return false;
+      });
+      if (!el) return;
+      var pin = document.createElement('div');
+      pin.className = 'rev-pin';
+      pin.textContent = i + 1;
+      var r = el.getBoundingClientRect();
+      pin.style.left = (window.scrollX + r.right + 4) + 'px';
+      pin.style.top = (window.scrollY + r.top - 4) + 'px';
+      document.body.appendChild(pin);
+    });
+  }
+
+  function summary() {
+    var lines = ['# Review feedback — ' + PAGE, '_' + new Date().toLocaleString() + ' · ' + location.href + '_', ''];
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      lines.push('## Text edits (' + ids.length + ')');
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        lines.push('- **[' + e.section + ']** “' + e.before + '” → “' + e.after + '”');
+      });
+      lines.push('');
+    }
+    if (state.notes.length) {
+      lines.push('## Notes (' + state.notes.length + ')');
+      state.notes.forEach(function (n, i) {
+        lines.push((i + 1) + '. **[' + n.section + ']** on “' + n.context + '”: ' + n.note);
+      });
+    }
+    if (!ids.length && !state.notes.length) lines.push('(no changes or notes yet)');
+    return lines.join('\n');
+  }
+
+  function refresh() {
+    var count = Object.keys(state.edits).length + state.notes.length;
+    openBtn.textContent = 'Review (' + count + ')';
+    if (tray.style.display === 'block') renderTray();
+  }
+
+  function renderTray() {
+    var html = '<h3>Review feedback</h3>';
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;">Text edits</div>';
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        html += '<div class="item"><button class="del" data-edit="' + id + '">remove</button><span class="loc">' + e.section + '</span><br><span class="before">' + e.before.slice(0, 70) + '</span><br>→ ' + e.after.slice(0, 90) + '</div>';
+      });
+    }
+    if (state.notes.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;margin-top:8px;">Notes</div>';
+      state.notes.forEach(function (n, i) {
+        html += '<div class="item"><button class="del" data-note="' + i + '">remove</button><span class="loc">' + n.section + '</span> on “' + n.context.slice(0, 50) + '”<br>' + n.note + '</div>';
+      });
+    }
+    if (!ids.length && !state.notes.length) html += '<p style="color:#888">Nothing yet. Use ✏️ Edit text to change wording in place, or 📝 Add note to comment on anything.</p>';
+    html += '<div class="actions"><button class="primary" id="rev-send">📤 Send feedback</button><button id="rev-copy">Copy</button><button id="rev-dl">Download</button><button id="rev-clear">Clear all</button></div><div id="rev-send-msg" style="font-size:12px;color:#888;margin-top:8px;"></div>';
+    tray.innerHTML = html;
+    tray.querySelectorAll('.del').forEach(function (b) {
+      b.onclick = function () {
+        if (b.dataset.edit) {
+          var el = document.querySelector('[data-rev-id="' + b.dataset.edit + '"]');
+          if (el) el.innerText = state.edits[b.dataset.edit].before;
+          delete state.edits[b.dataset.edit];
+        } else { state.notes.splice(parseInt(b.dataset.note), 1); drawPins(); }
+        save();
+      };
+    });
+    document.getElementById('rev-send').onclick = function () {
+      var btn = document.getElementById('rev-send');
+      var msg = document.getElementById('rev-send-msg');
+      var text = summary();
+      btn.textContent = 'Sending…'; btn.disabled = true;
+      fetch(REV_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ _subject: 'WSBL demo feedback — ' + PAGE, feedback: text }),
+      }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function () {
+        btn.textContent = 'Sent ✓'; btn.disabled = false;
+        msg.textContent = 'Feedback sent. Keep editing and send again any time.';
+      }).catch(function () {
+        btn.textContent = '📤 Send feedback'; btn.disabled = false;
+        msg.textContent = 'Direct send unavailable — opening an email instead.';
+        location.href = 'mailto:' + REV_EMAIL + '?subject=' + encodeURIComponent('WSBL demo feedback — ' + PAGE) + '&body=' + encodeURIComponent(text.slice(0, 1800));
+      });
+    };
+    document.getElementById('rev-copy').onclick = function () {
+      var text = summary();
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(
+        function () { document.getElementById('rev-copy').textContent = 'Copied ✓'; },
+        function () { window.prompt('Copy this:', text); });
+    };
+    document.getElementById('rev-dl').onclick = function () {
+      var a = document.createElement('a');
+      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(summary());
+      a.download = 'wsbl-review-feedback.txt';
+      a.click();
+    };
+    document.getElementById('rev-clear').onclick = function () {
+      if (!window.confirm('Clear all edits and notes on this page?')) return;
+      Object.keys(state.edits).forEach(function (id) {
+        var el = document.querySelector('[data-rev-id="' + id + '"]');
+        if (el) el.innerText = state.edits[id].before;
+      });
+      state = { edits: {}, notes: [] };
+      save(); drawPins();
+    };
+  }
+
+  openBtn.onclick = function () {
+    tray.style.display = tray.style.display === 'block' ? 'none' : 'block';
+    if (tray.style.display === 'block') renderTray();
+  };
+
+  window.addEventListener('scroll', drawPins);
+  window.addEventListener('resize', drawPins);
+  refresh(); drawPins();
+})();
+</script>
+
+</body>
+</html>
