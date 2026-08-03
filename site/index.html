@@ -368,7 +368,7 @@
 
 <script>
   // Point app links at the deployed app (same-origin /app/ by default; override with ?app= or edit here)
-  const APP_URL = new URLSearchParams(location.search).get('app') || '/app/';
+  const APP_URL = new URLSearchParams(location.search).get('app') || './app/';
   document.querySelectorAll('a[href^="/app/"]').forEach(a => {
     a.href = APP_URL + a.getAttribute('href').slice('/app/'.length);
   });
