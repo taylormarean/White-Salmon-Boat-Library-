@@ -272,5 +272,254 @@
   White Salmon Boat Library · The Missing Corner, BZ Corner, WA · Free gear, real whitewater
 </footer>
 
+
+<!-- rev-mode -->
+<!-- WSBL client review mode: inline text editing + notes + exportable summary.
+     Appended to the static demo pages (site + user guide) at build time. -->
+<style>
+  #rev-bar { position: fixed; bottom: 18px; right: 18px; z-index: 9999; display: flex; gap: 8px; font-family: system-ui, sans-serif; }
+  #rev-bar button { border: none; border-radius: 999px; padding: 10px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.18); background: #10282B; color: #fff; }
+  #rev-bar button.on { background: #0E7C86; }
+  #rev-bar button.count { background: #fff; color: #10282B; }
+  body.rev-editing [data-rev-id] { outline: 1px dashed rgba(14,124,134,0.5); outline-offset: 2px; min-height: 1em; }
+  body.rev-noting * { cursor: crosshair !important; }
+  #rev-tray { position: fixed; bottom: 70px; right: 18px; z-index: 9999; width: min(420px, calc(100vw - 36px)); max-height: 65vh; overflow-y: auto; background: #fff; color: #10282B; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); padding: 18px; font-family: system-ui, sans-serif; font-size: 13.5px; display: none; }
+  #rev-tray h3 { font-size: 15px; margin: 0 0 10px; }
+  #rev-tray .item { border-bottom: 1px solid #eee; padding: 8px 0; }
+  #rev-tray .item .loc { color: #0E7C86; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #rev-tray .item .del { float: right; background: none; border: none; color: #D93025; cursor: pointer; font-size: 12px; }
+  #rev-tray .before { color: #999; text-decoration: line-through; }
+  #rev-tray .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  #rev-tray .actions button { border: 1px solid #ddd; background: #f7f7f7; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-tray .actions button.primary { background: #0E7C86; color: #fff; border-color: #0E7C86; }
+  #rev-note-pop { position: fixed; z-index: 10000; background: #fff; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); padding: 14px; width: min(340px, calc(100vw - 40px)); font-family: system-ui, sans-serif; display: none; }
+  #rev-note-pop .ctx { font-size: 11.5px; color: #777; margin-bottom: 8px; max-height: 3em; overflow: hidden; }
+  #rev-note-pop textarea { width: 100%; min-height: 70px; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-family: inherit; font-size: 13.5px; box-sizing: border-box; }
+  #rev-note-pop .row { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+  #rev-note-pop .row button { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  #rev-note-pop .save { background: #0E7C86; color: #fff; }
+  #rev-note-pop .cancel { background: #eee; }
+  .rev-pin { position: absolute; z-index: 9998; background: #F2B90F; color: #10282B; border-radius: 999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font: 700 12px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,0.3); pointer-events: none; }
+  @media print { #rev-bar, #rev-tray, .rev-pin { display: none !important; } }
+</style>
+<div id="rev-bar">
+  <button id="rev-edit">✏️ Edit text</button>
+  <button id="rev-note">📝 Add note</button>
+  <button id="rev-open" class="count">Review (0)</button>
+</div>
+<div id="rev-tray"></div>
+<div id="rev-note-pop"><div class="ctx"></div><textarea placeholder="What should change here?"></textarea><div class="row"><button class="cancel">Cancel</button><button class="save">Save note</button></div></div>
+<script>
+(function () {
+  var PAGE = document.title || location.pathname;
+  var KEY = 'wsbl_review_' + location.pathname.replace(/[^a-z0-9]/gi, '_');
+
+  // Tag every text-bearing element so edits can be diffed against the original.
+  var seq = 0, orig = {};
+  var SEL = 'h1,h2,h3,h4,p,li,td,th,b,a,button,label,.eyebrow,.note,.cap,span';
+  Array.prototype.forEach.call(document.querySelectorAll(SEL), function (el) {
+    if (el.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    if (el.querySelector(SEL) && el.tagName !== 'P' && el.tagName !== 'LI' && el.tagName !== 'A' && el.tagName !== 'BUTTON') return;
+    var t = (el.innerText || '').trim();
+    if (!t) return;
+    var id = 'r' + seq++;
+    el.setAttribute('data-rev-id', id);
+    orig[id] = t;
+  });
+
+  function sectionOf(el) {
+    var sec = el.closest('section, header, footer, nav');
+    if (!sec) return 'page';
+    var h = sec.querySelector('h1,h2,h3');
+    return (sec.id || (h ? h.innerText.trim().slice(0, 40) : sec.tagName.toLowerCase()));
+  }
+
+  var state = { edits: {}, notes: [] };
+  try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
+  // Re-apply saved edits (skip any whose element no longer matches — page was updated)
+  Object.keys(state.edits || {}).forEach(function (id) {
+    var el = document.querySelector('[data-rev-id="' + id + '"]');
+    if (el && state.edits[id].before === orig[id]) el.innerText = state.edits[id].after;
+    else delete state.edits[id];
+  });
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(state)); refresh(); }
+
+  var bar = document.getElementById('rev-bar');
+  var editBtn = document.getElementById('rev-edit');
+  var noteBtn = document.getElementById('rev-note');
+  var openBtn = document.getElementById('rev-open');
+  var tray = document.getElementById('rev-tray');
+  var pop = document.getElementById('rev-note-pop');
+  var editing = false, noting = false, pendingTarget = null;
+
+  function collectEdits() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rev-id]'), function (el) {
+      var id = el.getAttribute('data-rev-id');
+      var now = (el.innerText || '').trim();
+      if (now !== orig[id]) state.edits[id] = { section: sectionOf(el), before: orig[id], after: now };
+      else delete state.edits[id];
+    });
+    save();
+  }
+
+  editBtn.onclick = function () {
+    editing = !editing;
+    if (editing && noting) noteBtn.onclick();
+    document.body.contentEditable = editing ? 'true' : 'false';
+    document.body.classList.toggle('rev-editing', editing);
+    editBtn.classList.toggle('on', editing);
+    editBtn.textContent = editing ? '✅ Done editing' : '✏️ Edit text';
+    if (!editing) collectEdits();
+  };
+  // While editing, clicking links shouldn't navigate away
+  document.addEventListener('click', function (e) {
+    if (editing && e.target.closest('a')) e.preventDefault();
+  }, true);
+
+  noteBtn.onclick = function () {
+    noting = !noting;
+    if (noting && editing) editBtn.onclick();
+    document.body.classList.toggle('rev-noting', noting);
+    noteBtn.classList.toggle('on', noting);
+    noteBtn.textContent = noting ? '❌ Cancel note' : '📝 Add note';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!noting || e.target.closest('#rev-bar,#rev-tray,#rev-note-pop')) return;
+    e.preventDefault(); e.stopPropagation();
+    pendingTarget = e.target.closest('[data-rev-id]') || e.target;
+    pop.querySelector('.ctx').textContent = 'On: “' + ((pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90)) + '”';
+    pop.style.display = 'block';
+    var x = Math.min(e.clientX, window.innerWidth - 360), y = Math.min(e.clientY, window.innerHeight - 200);
+    pop.style.left = Math.max(10, x) + 'px'; pop.style.top = Math.max(10, y) + 'px';
+    pop.querySelector('textarea').value = '';
+    pop.querySelector('textarea').focus();
+  }, true);
+
+  pop.querySelector('.cancel').onclick = function () { pop.style.display = 'none'; };
+  pop.querySelector('.save').onclick = function () {
+    var text = pop.querySelector('textarea').value.trim();
+    if (text) {
+      state.notes.push({
+        section: sectionOf(pendingTarget),
+        context: (pendingTarget.innerText || pendingTarget.tagName).trim().slice(0, 90),
+        note: text, ts: new Date().toLocaleString(),
+      });
+      save(); drawPins();
+    }
+    pop.style.display = 'none';
+    noteBtn.onclick();
+  };
+
+  function drawPins() {
+    Array.prototype.forEach.call(document.querySelectorAll('.rev-pin'), function (p) { p.remove(); });
+    state.notes.forEach(function (n, i) {
+      var el = null;
+      Array.prototype.some.call(document.querySelectorAll('[data-rev-id]'), function (cand) {
+        if ((cand.innerText || '').trim().slice(0, 90) === n.context) { el = cand; return true; }
+        return false;
+      });
+      if (!el) return;
+      var pin = document.createElement('div');
+      pin.className = 'rev-pin';
+      pin.textContent = i + 1;
+      var r = el.getBoundingClientRect();
+      pin.style.left = (window.scrollX + r.right + 4) + 'px';
+      pin.style.top = (window.scrollY + r.top - 4) + 'px';
+      document.body.appendChild(pin);
+    });
+  }
+
+  function summary() {
+    var lines = ['# Review feedback — ' + PAGE, '_' + new Date().toLocaleString() + ' · ' + location.href + '_', ''];
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      lines.push('## Text edits (' + ids.length + ')');
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        lines.push('- **[' + e.section + ']** “' + e.before + '” → “' + e.after + '”');
+      });
+      lines.push('');
+    }
+    if (state.notes.length) {
+      lines.push('## Notes (' + state.notes.length + ')');
+      state.notes.forEach(function (n, i) {
+        lines.push((i + 1) + '. **[' + n.section + ']** on “' + n.context + '”: ' + n.note);
+      });
+    }
+    if (!ids.length && !state.notes.length) lines.push('(no changes or notes yet)');
+    return lines.join('\n');
+  }
+
+  function refresh() {
+    var count = Object.keys(state.edits).length + state.notes.length;
+    openBtn.textContent = 'Review (' + count + ')';
+    if (tray.style.display === 'block') renderTray();
+  }
+
+  function renderTray() {
+    var html = '<h3>Review feedback</h3>';
+    var ids = Object.keys(state.edits);
+    if (ids.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;">Text edits</div>';
+      ids.forEach(function (id) {
+        var e = state.edits[id];
+        html += '<div class="item"><button class="del" data-edit="' + id + '">remove</button><span class="loc">' + e.section + '</span><br><span class="before">' + e.before.slice(0, 70) + '</span><br>→ ' + e.after.slice(0, 90) + '</div>';
+      });
+    }
+    if (state.notes.length) {
+      html += '<div class="loc" style="color:#0E7C86;font-weight:700;font-size:11.5px;text-transform:uppercase;margin-top:8px;">Notes</div>';
+      state.notes.forEach(function (n, i) {
+        html += '<div class="item"><button class="del" data-note="' + i + '">remove</button><span class="loc">' + n.section + '</span> on “' + n.context.slice(0, 50) + '”<br>' + n.note + '</div>';
+      });
+    }
+    if (!ids.length && !state.notes.length) html += '<p style="color:#888">Nothing yet. Use ✏️ Edit text to change wording in place, or 📝 Add note to comment on anything.</p>';
+    html += '<div class="actions"><button class="primary" id="rev-copy">Copy summary</button><button id="rev-dl">Download</button><button id="rev-clear">Clear all</button></div>';
+    tray.innerHTML = html;
+    tray.querySelectorAll('.del').forEach(function (b) {
+      b.onclick = function () {
+        if (b.dataset.edit) {
+          var el = document.querySelector('[data-rev-id="' + b.dataset.edit + '"]');
+          if (el) el.innerText = state.edits[b.dataset.edit].before;
+          delete state.edits[b.dataset.edit];
+        } else { state.notes.splice(parseInt(b.dataset.note), 1); drawPins(); }
+        save();
+      };
+    });
+    document.getElementById('rev-copy').onclick = function () {
+      var text = summary();
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(
+        function () { document.getElementById('rev-copy').textContent = 'Copied ✓'; },
+        function () { window.prompt('Copy this:', text); });
+    };
+    document.getElementById('rev-dl').onclick = function () {
+      var a = document.createElement('a');
+      a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(summary());
+      a.download = 'wsbl-review-feedback.txt';
+      a.click();
+    };
+    document.getElementById('rev-clear').onclick = function () {
+      if (!window.confirm('Clear all edits and notes on this page?')) return;
+      Object.keys(state.edits).forEach(function (id) {
+        var el = document.querySelector('[data-rev-id="' + id + '"]');
+        if (el) el.innerText = state.edits[id].before;
+      });
+      state = { edits: {}, notes: [] };
+      save(); drawPins();
+    };
+  }
+
+  openBtn.onclick = function () {
+    tray.style.display = tray.style.display === 'block' ? 'none' : 'block';
+    if (tray.style.display === 'block') renderTray();
+  };
+
+  window.addEventListener('scroll', drawPins);
+  window.addEventListener('resize', drawPins);
+  refresh(); drawPins();
+})();
+</script>
+
 </body>
 </html>

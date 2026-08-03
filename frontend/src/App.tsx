@@ -6,6 +6,7 @@ import { C, S, R, FONT, injectGlobalStyles } from './theme';
 import { getAuthUser, clearAuth, isStaff, type AuthUser } from './auth';
 import { IS_DEMO } from './api';
 import { resetDemo } from './demo/demoApi';
+import ReviewNotes from './demo/ReviewNotes';
 import Login from './pages/Login';
 import Join from './pages/Join';
 import SelfCheckout from './pages/SelfCheckout';
@@ -103,9 +104,9 @@ export default function App() {
 
   // Unauthenticated surface: login, join, policies
   if (!user && !['join', 'policies'].includes(page)) {
-    return <Login onLogin={onLogin} onJoin={() => nav('join')} onPolicies={() => nav('policies')} />;
+    return <>{IS_DEMO && <ReviewNotes />}<Login onLogin={onLogin} onJoin={() => nav('join')} onPolicies={() => nav('policies')} /></>;
   }
-  if (!user && page === 'join') return <Join onDone={() => nav('login')} onBack={() => nav('login')} />;
+  if (!user && page === 'join') return <>{IS_DEMO && <ReviewNotes />}<Join onDone={() => nav('login')} onBack={() => nav('login')} /></>;
   if (!user && page === 'policies') return (
     <div style={S.page}>
       <TopBar user={null} page={page} nav={nav} onLogout={onLogout} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
@@ -127,6 +128,7 @@ export default function App() {
   return (
     <div style={S.page}>
       {IS_DEMO && <DemoRibbon />}
+      {IS_DEMO && <ReviewNotes />}
       <TopBar user={user} page={effective} nav={nav} onLogout={onLogout} isMobile={isMobile} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       <main key={pageKey} className="page-enter" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 20px 80px' }}>
         {effective === 'checkout' && <SelfCheckout onDone={() => nav('mygear')} />}
