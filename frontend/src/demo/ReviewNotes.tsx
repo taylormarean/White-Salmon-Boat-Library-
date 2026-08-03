@@ -8,6 +8,12 @@ import { C, S, R, SHADOW, FONT } from '../theme';
 
 const KEY = 'wsbl_review_app';
 
+// Feedback delivery: formsubmit.co relays submissions to this inbox (no
+// account; first send triggers a one-time activation email). Swap in the
+// random alias endpoint after activation to hide the raw address.
+const REV_EMAIL = 'taylordwm@gmail.com';
+const REV_ENDPOINT = `https://formsubmit.co/ajax/${REV_EMAIL}`;
+
 interface Note { page: string; context: string; note: string; ts: string }
 
 function load(): Note[] {
@@ -27,6 +33,7 @@ export default function ReviewNotes() {
   const [pending, setPending] = useState<{ context: string; x: number; y: number } | null>(null);
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
+  const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
 
   useEffect(() => {
     if (!arming) return;
@@ -61,6 +68,22 @@ export default function ReviewNotes() {
     (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
       .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
       .catch(() => window.prompt('Copy this:', text));
+  };
+
+  const send = async () => {
+    setSendState('sending');
+    try {
+      const res = await fetch(REV_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ _subject: 'WSBL app demo feedback', feedback: summary() }),
+      });
+      if (!res.ok) throw new Error();
+      setSendState('sent');
+    } catch {
+      setSendState('failed');
+      window.location.href = `mailto:${REV_EMAIL}?subject=${encodeURIComponent('WSBL app demo feedback')}&body=${encodeURIComponent(summary().slice(0, 1800))}`;
+    }
   };
 
   const download = () => {
@@ -130,10 +153,15 @@ export default function ReviewNotes() {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <button style={{ ...S.btn, padding: '8px 12px', fontSize: 12.5 }} onClick={copy}>{copied ? 'Copied ✓' : 'Copy summary'}</button>
+            <button style={{ ...S.btn, padding: '8px 12px', fontSize: 12.5 }} disabled={sendState === 'sending'} onClick={send}>
+              {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent ✓' : '📤 Send feedback'}
+            </button>
+            <button style={{ ...S.btnGhost, padding: '8px 12px', fontSize: 12.5 }} onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button>
             <button style={{ ...S.btnGhost, padding: '8px 12px', fontSize: 12.5 }} onClick={download}>Download</button>
             <button style={{ ...S.btnGhost, padding: '8px 12px', fontSize: 12.5 }} onClick={() => { if (window.confirm('Clear all notes?')) { setNotes([]); persist([]); } }}>Clear all</button>
           </div>
+          {sendState === 'sent' && <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 8 }}>Feedback sent. Keep noting and send again any time.</div>}
+          {sendState === 'failed' && <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 8 }}>Direct send unavailable — opened an email instead.</div>}
         </div>
       )}
     </div>

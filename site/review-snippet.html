@@ -37,6 +37,12 @@
 (function () {
   var PAGE = document.title || location.pathname;
   var KEY = 'wsbl_review_' + location.pathname.replace(/[^a-z0-9]/gi, '_');
+  // Feedback delivery: formsubmit.co relays submissions to this inbox (no
+  // account needed; the first send triggers a one-time activation email).
+  // After activation, formsubmit provides a random alias endpoint — swap it
+  // in here to keep the raw address out of the page source.
+  var REV_EMAIL = 'taylordwm@gmail.com';
+  var REV_ENDPOINT = 'https://formsubmit.co/ajax/' + REV_EMAIL;
 
   // Tag every text-bearing element so edits can be diffed against the original.
   var seq = 0, orig = {};
@@ -199,7 +205,7 @@
       });
     }
     if (!ids.length && !state.notes.length) html += '<p style="color:#888">Nothing yet. Use ✏️ Edit text to change wording in place, or 📝 Add note to comment on anything.</p>';
-    html += '<div class="actions"><button class="primary" id="rev-copy">Copy summary</button><button id="rev-dl">Download</button><button id="rev-clear">Clear all</button></div>';
+    html += '<div class="actions"><button class="primary" id="rev-send">📤 Send feedback</button><button id="rev-copy">Copy</button><button id="rev-dl">Download</button><button id="rev-clear">Clear all</button></div><div id="rev-send-msg" style="font-size:12px;color:#888;margin-top:8px;"></div>';
     tray.innerHTML = html;
     tray.querySelectorAll('.del').forEach(function (b) {
       b.onclick = function () {
@@ -211,6 +217,24 @@
         save();
       };
     });
+    document.getElementById('rev-send').onclick = function () {
+      var btn = document.getElementById('rev-send');
+      var msg = document.getElementById('rev-send-msg');
+      var text = summary();
+      btn.textContent = 'Sending…'; btn.disabled = true;
+      fetch(REV_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ _subject: 'WSBL demo feedback — ' + PAGE, feedback: text }),
+      }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function () {
+        btn.textContent = 'Sent ✓'; btn.disabled = false;
+        msg.textContent = 'Feedback sent. Keep editing and send again any time.';
+      }).catch(function () {
+        btn.textContent = '📤 Send feedback'; btn.disabled = false;
+        msg.textContent = 'Direct send unavailable — opening an email instead.';
+        location.href = 'mailto:' + REV_EMAIL + '?subject=' + encodeURIComponent('WSBL demo feedback — ' + PAGE) + '&body=' + encodeURIComponent(text.slice(0, 1800));
+      });
+    };
     document.getElementById('rev-copy').onclick = function () {
       var text = summary();
       (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(
