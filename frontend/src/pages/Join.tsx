@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { C, S } from '../theme';
 
+// ⚠ DRAFT WAIVER — written to match the library's published policies, but it is
+// NOT the library's official waiver. Before launch, replace this constant with
+// the exact text of the paper waiver used at the shed (get it from the library
+// or their attorney), then bump the waiver_version setting so every member
+// re-signs the official version at their next checkout.
 const WAIVER_TEXT = `RELEASE OF LIABILITY, WAIVER OF CLAIMS & ASSUMPTION OF RISK
 
 Whitewater paddling is inherently dangerous. Hazards include, but are not limited to: drowning, hypothermia, entrapment, collision with rocks or wood, changing river flows, and equipment failure. By signing below I acknowledge that:
@@ -113,6 +118,11 @@ export default function Join({ onDone, onBack }: { onDone: () => void; onBack: (
 
           <div style={{ ...S.card, marginBottom: 16 }}>
             <h2 style={S.h2}>Liability waiver</h2>
+            {import.meta.env.VITE_DEMO === '1' && (
+              <p style={{ fontSize: 12.5, color: C.yellow, marginBottom: 10 }}>
+                Demo note: draft waiver text — the library's official waiver drops in before launch.
+              </p>
+            )}
             <pre style={{
               whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, color: C.textSecondary,
               maxHeight: 220, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 12,

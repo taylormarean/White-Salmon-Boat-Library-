@@ -91,8 +91,11 @@ npm run build
 wrangler pages deploy dist --project-name=wsbl
 ```
 
-Add your Pages/custom domain to `ALLOWED_ORIGINS` in
-[worker/src/index.ts](worker/src/index.ts) before going live.
+Before going live: add your Pages/custom domain to `ALLOWED_ORIGINS` in
+[worker/src/index.ts](worker/src/index.ts), and replace the draft
+`WAIVER_TEXT` in [frontend/src/pages/Join.tsx](frontend/src/pages/Join.tsx)
+with the library's official waiver (then bump `waiver_version` in Settings
+so every member re-signs it).
 
 ## Local development
 

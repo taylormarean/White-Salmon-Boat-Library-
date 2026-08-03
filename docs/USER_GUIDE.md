@@ -35,7 +35,9 @@ the software instead.
    whitewater" just means the app will ask who you're paddling with.
 3. Read the **liability waiver** and sign it by typing your full legal name.
    There is no membership without a signed waiver — the system won't create
-   the account.
+   the account. (The app currently carries a draft waiver written to match
+   the library's policies; the library's official waiver text drops in
+   before launch, and bumping the waiver version makes everyone re-sign it.)
 4. You'll get a welcome email with the orientation schedule. New Member
    Orientations are Tuesdays at 5:30pm at the shed (The Missing Corner,
    BZ Corner — across from the Mini Mart). New paddlers are strongly
