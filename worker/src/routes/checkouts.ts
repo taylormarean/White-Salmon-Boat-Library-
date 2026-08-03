@@ -49,7 +49,7 @@ export const handleCheckouts = {
     let b: {
       gear_item_ids?: string[]; due_at?: string;
       ack_sober?: boolean; ack_pfd?: boolean; ack_experience?: boolean; ack_condition?: boolean;
-      buddy_name?: string; planned_river_section?: string;
+      buddy_name?: string; planned_river_section?: string; trip_note?: string;
     };
     try { b = await request.json(); } catch { return err('Invalid JSON'); }
 
@@ -86,13 +86,21 @@ export const handleCheckouts = {
     const maxItems = parseInt((await getSetting(env, 'max_items_per_checkout')) ?? '6');
     if (ids.length > maxItems) return err(`You can check out at most ${maxItems} items at a time.`);
 
-    const maxLoanDays = parseInt((await getSetting(env, 'max_loan_days')) ?? '7');
+    // WSBL rental periods: 3 days standard; up to 9 days (three rental
+    // periods) reserved for multi-day runs or out-of-town trips, which must
+    // be noted — the digital version of "note it on the checkout board".
+    const standardDays = parseInt((await getSetting(env, 'standard_loan_days')) ?? '3');
+    const maxLoanDays = parseInt((await getSetting(env, 'max_loan_days')) ?? '9');
     const due = new Date(b.due_at ?? '');
     if (isNaN(due.getTime())) return err('A return date is required.');
     const now = new Date();
     if (due.getTime() < now.getTime()) return err('The return date must be in the future.');
     if (due.getTime() > now.getTime() + maxLoanDays * 86_400_000 + 60_000) {
-      return err(`Loans are limited to ${maxLoanDays} days. Pick an earlier return date.`);
+      return err(`${maxLoanDays} days (three rental periods) is the maximum. Pick an earlier return date.`);
+    }
+    const isExtended = due.getTime() > now.getTime() + standardDays * 86_400_000 + 60_000;
+    if (isExtended && !(b.trip_note ?? '').trim()) {
+      return err(`Standard rentals are ${standardDays} days. Longer rentals are reserved for multi-day runs and out-of-town trips — tell us where the gear is going.`);
     }
 
     // --- Availability check + atomic claim (mirrors the tour-claim guard) ---
@@ -127,9 +135,9 @@ export const handleCheckouts = {
 
     const stmts = [
       env.DB.prepare(
-        `INSERT INTO checkouts (id, member_id, status, due_at, ack_sober, ack_pfd, ack_experience, ack_condition, buddy_name, planned_river_section)
-         VALUES (?, ?, 'active', ?, 1, 1, 1, 1, ?, ?)`,
-      ).bind(checkoutId, m.id, dueIso, (b.buddy_name ?? '').trim() || null, (b.planned_river_section ?? '').trim() || null),
+        `INSERT INTO checkouts (id, member_id, status, due_at, ack_sober, ack_pfd, ack_experience, ack_condition, buddy_name, planned_river_section, trip_note)
+         VALUES (?, ?, 'active', ?, 1, 1, 1, 1, ?, ?, ?)`,
+      ).bind(checkoutId, m.id, dueIso, (b.buddy_name ?? '').trim() || null, (b.planned_river_section ?? '').trim() || null, (b.trip_note ?? '').trim() || null),
       ...ids.map((gid) =>
         env.DB.prepare('INSERT INTO checkout_items (checkout_id, gear_item_id) VALUES (?, ?)').bind(checkoutId, gid),
       ),
@@ -149,9 +157,9 @@ export const handleCheckouts = {
       body:
         `Hi ${m.name},\n\nYour checkout is confirmed. Shed access code: ${code}\n\n` +
         `Gear:\n${gearList}\n\nDue back: ${due.toDateString()}\n\n` +
-        `On your way out, initial the physical board if it's still up, close the shed, and scramble the lock. ` +
-        `When you bring the gear back, mark it returned in the app and note any damage — honest damage reports keep the library running.\n\n` +
-        `River rules: PFD on the water, zero tolerance for drugs/alcohol with library gear, beginners paddle with a buddy.`,
+        `Please don't share your access code with anyone. When you bring the gear back, return each piece to its correct location in the library, ` +
+        `then mark it returned in the app with an honest condition report — torn, ripped, or broken gear goes in the repair bin.\n\n` +
+        `On the water: wear a suitable PFD, boat within your personal skill level (no Class V with library equipment), zero tolerance for drugs and alcohol with library gear, and new paddlers go with someone experienced.`,
     });
 
     return json({

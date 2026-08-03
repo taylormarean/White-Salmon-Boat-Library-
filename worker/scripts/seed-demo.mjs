@@ -49,7 +49,7 @@ for (const m of MEMBERS) {
 const due = (days) => new Date(Date.now() + days * 86_400_000).toISOString();
 const checkouts = [
   { email: 'maya.demo@example.com', gear_item_ids: ['k02', 'p01', 'f01', 'h01', 's01'], due_at: due(3), planned_river_section: 'Green Truss' },
-  { email: 'sam.demo@example.com', gear_item_ids: ['i01', 'p02', 'f02', 'h02'], due_at: due(5), buddy_name: 'Maya Torres', planned_river_section: 'BZ to Husum' },
+  { email: 'sam.demo@example.com', gear_item_ids: ['i01', 'p02', 'f02', 'h02'], due_at: due(5), buddy_name: 'Maya Torres', planned_river_section: 'BZ to Husum', trip_note: 'Long weekend on the Deschutes' },
 ];
 for (const c of checkouts) {
   const t = tokens[c.email];

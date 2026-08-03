@@ -10,11 +10,13 @@ Whitewater paddling is inherently dangerous. Hazards include, but are not limite
 
 1. I am voluntarily using equipment lent to me at no cost by the White Salmon Boat Library ("the Library") entirely at my own risk.
 2. The Library does not provide instruction, guiding, trip planning, or supervision. I am solely responsible for judging whether a river section is within my ability.
-3. I will wear a properly fitted PFD whenever I am on the water, and a helmet whenever appropriate for the craft and water.
-4. I will not use Library gear while under the influence of drugs or alcohol — zero tolerance.
-5. If I am new to whitewater paddling, I will only paddle with an experienced partner who can help me choose safe water and use the gear correctly.
-6. I will inspect gear before use and report any damage honestly when I return it.
-7. I release the White Salmon Boat Library, its volunteers, directors, and donors from any and all claims arising from my use of borrowed equipment, to the fullest extent permitted by law.
+3. I will wear a suitable PFD whenever I am on the water, and a helmet whenever appropriate for the craft and water.
+4. I will not use Library gear while under the influence of drugs or alcohol — zero tolerance for drug and alcohol use when on the river with library gear.
+5. I will boat within my personal skill level and will never use Library equipment on Class V whitewater. If I am new to the sport, I will only go with another person who can help me choose safe river sections and instruct me on proper use of the gear.
+6. It is my duty to inspect all of my own gear for defects before use. I will report any damage honestly when I return gear, and follow the Library's gear-care rules (torn, ripped, or broken gear goes in the repair bin; damaged gear is reported and set aside).
+7. Library gear is intended for local use. If gear is leaving a 100-mile radius of the library, I will tell the Library where the gear is going.
+8. I will not share my access code with anyone, and I will abide by the Library's community standards, including its anti-discrimination policy and zero tolerance for harassment.
+9. I release the White Salmon Boat Library, its volunteers, directors, and donors from any and all claims arising from my use of borrowed equipment, to the fullest extent permitted by law.
 
 This waiver applies to every checkout I make while it remains on file.`;
 
@@ -117,7 +119,7 @@ export default function Join({ onDone, onBack }: { onDone: () => void; onBack: (
             }}>{WAIVER_TEXT}</pre>
             <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, marginBottom: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={f.waiver_accepted} onChange={(e) => set('waiver_accepted', e.target.checked)} required style={{ marginTop: 3 }} />
-              <span>I have read and agree to the waiver, and to the library rules: PFD on the water, zero tolerance for drugs and alcohol with library gear, beginners paddle with a buddy.</span>
+              <span>I have read and agree to the waiver and to all White Salmon Boat Library policies, including the rental-period, gear-care, safety, and community-standards rules.</span>
             </label>
             <label style={S.label}>Sign by typing your full legal name</label>
             <input style={S.input} value={f.waiver_signature} onChange={(e) => set('waiver_signature', e.target.value)} placeholder="Full legal name" required />

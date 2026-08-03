@@ -70,7 +70,7 @@ function seed(): DB {
     checkouts: [], checkoutItems: [], maintenance: [], shifts: [], signups: [],
     incidents: [], donations: [], accessCodes: [], notifications: [], auditLog: [],
     settings: {
-      app_name: 'White Salmon Boat Library', max_loan_days: '7', max_items_per_checkout: '6',
+      app_name: 'White Salmon Boat Library', standard_loan_days: '3', max_loan_days: '9', max_items_per_checkout: '8',
       door_code_mode: 'per_checkout', notifications_paused: '0', notifications_pause_reason: '',
       orientation_info: 'New Member Orientations are Tuesdays at 5:30pm at the library shed at The Missing Corner in BZ Corner (across from the BZ Corner Mini Mart).',
       waiver_version: '1', library_address: 'The Missing Corner, BZ Corner, WA — Hwy 141 at Glenwood Hwy, across from the Mini Mart',
@@ -80,11 +80,11 @@ function seed(): DB {
   };
 
   // Two live checkouts (Maya out on the Truss, Sam on the classic with a buddy)
-  const co = (id: string, memberId: string, items: string[], dueDays: number, buddy: string | null, river: string) => {
+  const co = (id: string, memberId: string, items: string[], dueDays: number, buddy: string | null, river: string, tripNote: string | null = null) => {
     db.checkouts.push({
       id, member_id: memberId, status: 'active', checked_out_at: sqlNow(), due_at: daysFromNow(dueDays),
       returned_at: null, access_code: randomCode(), ack_sober: 1, ack_pfd: 1, ack_experience: 1, ack_condition: 1,
-      buddy_name: buddy, planned_river_section: river, return_notes: null, extended_by: null, force_returned_by: null,
+      buddy_name: buddy, planned_river_section: river, trip_note: tripNote, return_notes: null, extended_by: null, force_returned_by: null,
     });
     for (const g of items) {
       db.checkoutItems.push({ checkout_id: id, gear_item_id: g, returned_at: null, condition_on_return: null, damage_notes: null });
@@ -94,7 +94,7 @@ function seed(): DB {
     db.accessCodes.push({ id: idCounter++, checkout_id: id, member_id: memberId, code: c.access_code, mode: 'per_checkout', issued_at: sqlNow() });
   };
   co('co_maya', 'mem_maya', ['k02', 'f01'], 3, null, 'Green Truss');
-  co('co_sam', 'mem_sam', ['i01', 'h02'], 5, 'Maya Torres', 'BZ to Husum');
+  co('co_sam', 'mem_sam', ['i01', 'h02'], 5, 'Maya Torres', 'BZ to Husum', 'Long weekend on the Deschutes');
 
   // A repair-queue item
   db.gear.find((g) => g.id === 'd01')!.status = 'maintenance';
@@ -269,8 +269,11 @@ export const demoApi: any = {
     const due = new Date(data.due_at ?? '');
     if (isNaN(due.getTime())) fail('A return date is required.');
     if (due.getTime() < Date.now()) fail('The return date must be in the future.');
+    const standardDays = parseInt(db.settings.standard_loan_days ?? '3');
     const maxDays = parseInt(db.settings.max_loan_days);
-    if (due.getTime() > Date.now() + maxDays * 86_400_000 + 60_000) fail(`Loans are limited to ${maxDays} days. Pick an earlier return date.`);
+    if (due.getTime() > Date.now() + maxDays * 86_400_000 + 60_000) fail(`${maxDays} days (three rental periods) is the maximum. Pick an earlier return date.`);
+    const isExtended = due.getTime() > Date.now() + standardDays * 86_400_000 + 60_000;
+    if (isExtended && !(data.trip_note ?? '').trim()) fail(`Standard rentals are ${standardDays} days. Longer rentals are reserved for multi-day runs and out-of-town trips — tell us where the gear is going.`);
     const items = ids.map((id) => db.gear.find((g) => g.id === id) ?? fail('One or more selected items no longer exist.'));
     const unavailable = items.filter((g: any) => g.status !== 'available' || !g.active);
     if (unavailable.length) fail(`Not available: ${unavailable.map((g: any) => `${g.gear_code} (${g.status})`).join(', ')}. Refresh and pick again.`);
@@ -282,6 +285,7 @@ export const demoApi: any = {
       id, member_id: m.id, status: 'active', checked_out_at: sqlNow(), due_at: due.toISOString(), returned_at: null,
       access_code: code, ack_sober: 1, ack_pfd: 1, ack_experience: 1, ack_condition: 1,
       buddy_name: (data.buddy_name ?? '').trim() || null, planned_river_section: (data.planned_river_section ?? '').trim() || null,
+      trip_note: (data.trip_note ?? '').trim() || null,
       return_notes: null, extended_by: null, force_returned_by: null,
     });
     for (const g of items) db.checkoutItems.push({ checkout_id: id, gear_item_id: (g as any).id, returned_at: null, condition_on_return: null, damage_notes: null });

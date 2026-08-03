@@ -9,7 +9,7 @@ const ROLES = ['admin', 'librarian', 'volunteer', 'member', 'disabled'];
 
 // Runtime-togglable settings an admin may edit from the UI. Anything else 400s.
 const EDITABLE_SETTINGS = [
-  'app_name', 'max_loan_days', 'max_items_per_checkout', 'door_code_mode',
+  'app_name', 'standard_loan_days', 'max_loan_days', 'max_items_per_checkout', 'door_code_mode',
   'notifications_paused', 'notifications_pause_reason', 'orientation_info',
   'waiver_version', 'library_address', 'staff_digest_email',
 ];

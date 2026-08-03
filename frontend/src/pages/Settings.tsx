@@ -9,7 +9,8 @@ import { PageHeader } from '../components';
 const FIELDS: { key: string; label: string; help?: string; type?: 'select' | 'toggle'; options?: string[] }[] = [
   { key: 'app_name', label: 'Library name' },
   { key: 'library_address', label: 'Shed address' },
-  { key: 'max_loan_days', label: 'Max loan length (days)' },
+  { key: 'standard_loan_days', label: 'Standard rental period (days)', help: 'WSBL policy: 3 days. Longer rentals require a trip note at checkout.' },
+  { key: 'max_loan_days', label: 'Maximum rental (days)', help: 'WSBL policy: 9 days (three rental periods), reserved for multi-day runs and out-of-town trips.' },
   { key: 'max_items_per_checkout', label: 'Max items per checkout' },
   { key: 'door_code_mode', label: 'Door code mode', type: 'select', options: ['per_checkout', 'daily'], help: 'per_checkout: each checkout gets a random code you keep synced to a lockbox rotation. daily: one deterministic code per day (program the smart lock from the code shown on the Checkouts page).' },
   { key: 'orientation_info', label: 'Orientation info (shown to new members)' },

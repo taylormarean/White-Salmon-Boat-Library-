@@ -38,8 +38,11 @@ service complete without a receipt."
 
 ## SOP 2 — Self-serve checkout
 
-1. Member signs in and picks available gear (limits: 6 items, 7-day loans —
-   both configurable in Settings).
+1. Member signs in and picks available gear. Rental period: 3 days standard,
+   9 days (three rental periods) maximum — longer-than-standard rentals
+   require a trip note and are reserved for multi-day runs and out-of-town
+   trips. Gear leaving a 100-mile radius must say where it's going. All
+   limits configurable in Settings.
 2. The system enforces, in order: active membership → current waiver →
    no overdue gear → item/loan limits → all four safety acknowledgments →
    buddy name for beginners → per-item availability (atomic; a race with
@@ -64,8 +67,9 @@ service complete without a receipt."
    without one. The item goes straight to `maintenance` status and a repair
    ticket opens, so the next member can never take out unsafe gear. This is
    the library's receipt-enforcement equivalent.
-3. Staff work the repair queue on the Inventory page; resolving a ticket can
-   return the item to circulation (only when no other open tickets exist).
+3. Staff work the repair queue on the Inventory page (the digital repair bin
+   and damaged bin); resolving a ticket can return the item to circulation
+   (only when no other open tickets exist).
 4. Gear physically returned but never marked in the app → staff use
    **Force return** (optionally routing items to inspection).
 

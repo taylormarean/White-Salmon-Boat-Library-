@@ -29,6 +29,8 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
   const [acks, setAcks] = useState({ sober: false, pfd: false, experience: false, condition: false });
   const [buddy, setBuddy] = useState('');
   const [river, setRiver] = useState('');
+  const [tripNote, setTripNote] = useState('');
+  const [leavingRadius, setLeavingRadius] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -58,9 +60,15 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
 
   const isBeginner = me?.experience_level === 'beginner';
   const maxDate = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() + 7);
+    const d = new Date(); d.setDate(d.getDate() + 9);
     return d.toISOString().slice(0, 10);
   }, []);
+  const standardDate = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const isExtended = !!dueDate && dueDate > standardDate;
+  const needsTripNote = isExtended || leavingRadius;
 
   const submit = async () => {
     setError(''); setBusy(true);
@@ -70,6 +78,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
         due_at: dueDate ? new Date(`${dueDate}T20:00:00`).toISOString() : '',
         ack_sober: acks.sober, ack_pfd: acks.pfd, ack_experience: acks.experience, ack_condition: acks.condition,
         buddy_name: buddy, planned_river_section: river,
+        trip_note: needsTripNote ? `${leavingRadius ? '(Leaving 100-mile radius) ' : ''}${tripNote}`.trim() : '',
       });
       setResult(res);
     } catch (e: any) {
@@ -108,7 +117,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
     );
   }
 
-  const canSubmit = selected.size > 0 && dueDate && acks.sober && acks.pfd && acks.experience && acks.condition && (!isBeginner || buddy.trim());
+  const canSubmit = selected.size > 0 && dueDate && acks.sober && acks.pfd && acks.experience && acks.condition && (!isBeginner || buddy.trim()) && (!needsTripNote || tripNote.trim());
 
   if (!me && !error) return <Loading label="Loading your membership" />;
 
@@ -123,7 +132,7 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
       )}
 
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <Step n={1} title={<>Pick your gear <span style={{ color: C.textSecondary, fontWeight: 400 }}>({selected.size} selected, max 6)</span></>} />
+        <Step n={1} title={<>Pick your gear <span style={{ color: C.textSecondary, fontWeight: 400 }}>({selected.size} selected — up to a full setup)</span></>} />
         {cats.map((cat) => {
           const items = byCat.get(cat.id) ?? [];
           if (items.length === 0) return null;
@@ -153,25 +162,41 @@ export default function SelfCheckout({ onDone }: { onDone: () => void }) {
 
       <div style={{ ...S.card, marginBottom: 16 }}>
         <Step n={2} title="When will you bring it back?" />
-        <label style={S.label}>Return date (loans up to 7 days)</label>
+        <label style={S.label}>Return date — the rental period is 3 days; if you live locally and can return gear in 3 days or less, please do</label>
         <input style={{ ...S.input, maxWidth: 220 }} type="date" value={dueDate}
           min={new Date().toISOString().slice(0, 10)} max={maxDate}
           onChange={(e) => setDueDate(e.target.value)} />
+        {isExtended && (
+          <div style={{ marginTop: 12 }}>
+            <label style={S.label}>Longer rentals (up to 9 days max) are reserved for multi-day runs and out-of-town trips — what's the trip?</label>
+            <input style={{ ...S.input, maxWidth: 420 }} value={tripNote} onChange={(e) => setTripNote(e.target.value)} placeholder="e.g. 4-day Selway trip" />
+          </div>
+        )}
         <div style={{ marginTop: 12 }}>
           <label style={S.label}>Where are you planning to paddle? (optional, helps us help you)</label>
           <input style={{ ...S.input, maxWidth: 380 }} value={river} onChange={(e) => setRiver(e.target.value)} placeholder="e.g. BZ to Husum" />
         </div>
+        <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, marginTop: 12, cursor: 'pointer' }}>
+          <input type="checkbox" checked={leavingRadius} onChange={(e) => setLeavingRadius(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>The gear is leaving a 100-mile radius of the library <span style={{ color: C.textSecondary }}>(library policy: tell us where it's going)</span></span>
+        </label>
+        {leavingRadius && !isExtended && (
+          <div style={{ marginTop: 10 }}>
+            <label style={S.label}>Where is the gear going?</label>
+            <input style={{ ...S.input, maxWidth: 420 }} value={tripNote} onChange={(e) => setTripNote(e.target.value)} placeholder="Destination" />
+          </div>
+        )}
       </div>
 
       <div style={{ ...S.card, marginBottom: 16 }}>
         <Step n={3} title="The library agreement" />
         {([
-          ['sober', 'Zero tolerance: no drugs or alcohol while using library gear on the river.'],
-          ['pfd', 'I will wear a properly fitted PFD whenever I am on the water.'],
+          ['sober', 'Zero tolerance: no drug or alcohol use when on the river with library gear.'],
+          ['pfd', 'I will wear a suitable PFD whenever I am on the water.'],
           ['experience', isBeginner
-            ? 'I am new to whitewater, so I will only paddle with an experienced buddy who can guide me on safe water and gear use.'
-            : 'I will only paddle water within my ability, and help newer paddlers do the same.'],
-          ['condition', 'I will inspect the gear before use and honestly report any damage when I return it.'],
+            ? 'I am new to the sport, so I will go with another person who can help me choose safe river sections and use the gear properly — and I will never take library equipment on Class V whitewater.'
+            : 'I will boat within my personal skill level and will not use library equipment on Class V whitewater.'],
+          ['condition', 'It is my duty to inspect my gear for defects before use (torn, ripped, or broken gear goes in the repair bin), and I will honestly report any damage when I return it.'],
         ] as [keyof typeof acks, string][]).map(([k, label]) => (
           <label key={k} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, marginBottom: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={acks[k]} onChange={(e) => setAcks((p) => ({ ...p, [k]: e.target.checked }))} style={{ marginTop: 3 }} />

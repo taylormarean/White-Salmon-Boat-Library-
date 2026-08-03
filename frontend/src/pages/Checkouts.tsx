@@ -105,6 +105,7 @@ export default function Checkouts() {
                         ))}
                         {c.buddy_name && <div style={{ color: C.textTertiary, fontSize: 12 }}>buddy: {c.buddy_name}</div>}
                         {c.planned_river_section && <div style={{ color: C.textTertiary, fontSize: 12 }}>river: {c.planned_river_section}</div>}
+                        {c.trip_note && <div style={{ color: C.yellow, fontSize: 12 }}>trip: {c.trip_note}</div>}
                       </td>
                       <td style={S.td}>{new Date(c.checked_out_at + (c.checked_out_at.endsWith('Z') ? '' : 'Z')).toLocaleDateString()}</td>
                       <td style={{ ...S.td, color: overdue ? C.red : C.text }}>

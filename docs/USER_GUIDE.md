@@ -48,15 +48,19 @@ Sign in → **Check Out Gear**. Three steps:
 1. **Pick your gear** — everything available right now, grouped by category
    (kayaks, IKs, paddles, PFDs, helmets, skirts, drytops, throwbags). Each
    item shows its code (matching the physical tag on the gear), brand/model,
-   color, size, and condition. Up to 6 items per checkout.
-2. **Pick a return date** — up to 7 days out. You can tell us where you're
-   planning to paddle (optional, but helpful if something goes wrong).
+   color, size, and condition — everything the paper checkout board required.
+2. **Pick a return date** — the rental period is 3 days; rentals up to the
+   9-day maximum are reserved for multi-day runs and out-of-town trips and
+   require a trip note (the digital version of noting it on the checkout
+   board). Gear leaving a 100-mile radius of the library? Tell us where
+   it's going.
 3. **The library agreement** — four checkboxes, each one a real rule:
-   - Zero tolerance for drugs & alcohol with library gear
-   - PFD on whenever you're on the water
-   - Beginners: name the experienced buddy you're paddling with (the form
-     requires it if you registered as new to whitewater)
-   - Honest damage reporting on return
+   - Zero tolerance for drug and alcohol use on the river with library gear
+   - A suitable PFD on whenever you're on the water
+   - Boat within your skill level — no library equipment on Class V
+     whitewater; beginners name the experienced person they're going with
+   - Inspect your gear for defects before use, and report damage honestly
+     on return
 
 Hit the button and **your shed access code appears on screen** (and lands in
 your email). Grab exactly the gear on your checkout, close the shed,
@@ -179,7 +183,7 @@ demote or disable your own admin account.
 
 Live configuration — changes apply instantly:
 
-- **Loan limits**: max days per loan, max items per checkout
+- **Rental periods**: standard (3 days) and maximum (9 days), max items per checkout
 - **Door code mode**: `per_checkout` (each checkout gets a random code) or
   `daily` (one code per day, shown to staff for programming the keypad;
   members only see it after a valid check-in)
@@ -199,10 +203,11 @@ Three logs, all searchable in the app:
 
 ### Donations (Stripe)
 
-The website's Donate button opens a Stripe-hosted checkout — card details
-never touch the library's systems. Completed donations appear for staff with
-running totals. Until Stripe keys are configured, the button politely says
-donations aren't live yet.
+The library accepts donations by Venmo (@TheBoatLibrary), PayPal, and the
+secure drop box at the facility (checks payable to "White Salmon Boat
+Library") — donations are tax-deductible. The website's card option opens a
+Stripe-hosted checkout; card details never touch the library's systems, and
+completed card donations appear for staff with running totals.
 
 ---
 

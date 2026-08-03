@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS checkouts (
   ack_condition INTEGER NOT NULL DEFAULT 0,      -- will report damage honestly
   buddy_name TEXT,                               -- required when member is a beginner
   planned_river_section TEXT,
+  trip_note TEXT,                                -- required for >3-day rentals and gear leaving the 100-mile radius
   return_notes TEXT,
   extended_by TEXT,                              -- staff username if due date extended
   force_returned_by TEXT                         -- staff username if staff closed it
@@ -226,8 +227,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
 INSERT OR IGNORE INTO settings (key, value) VALUES
   ('app_name', 'White Salmon Boat Library'),
-  ('max_loan_days', '7'),
-  ('max_items_per_checkout', '6'),
+  ('standard_loan_days', '3'),   -- WSBL rental period: 3 days
+  ('max_loan_days', '9'),        -- 9 days (three rental periods) is the maximum, for multi-day/out-of-town trips
+  ('max_items_per_checkout', '8'),  -- a full setup: boat, paddle, PFD, helmet, skirt, drytop, throwbag +1
   ('door_code_mode', 'per_checkout'),        -- per_checkout | daily
   ('notifications_paused', '0'),
   ('notifications_pause_reason', ''),
