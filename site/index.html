@@ -3,202 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>White Salmon Boat Library — Free boats. Real whitewater.</title>
-<meta name="description" content="A free community whitewater gear library in BZ Corner, WA. Join online, get the shed code, go paddle. Business up front, party downstream.">
-<meta name="theme-color" content="#0B3B40">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2230%22 fill=%22%230B3B40%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 text-anchor=%22middle%22>🛶</text></svg>">
+<title>White Salmon Boat Library — Free community whitewater gear</title>
+<meta name="description" content="A local, donation-based non-profit in the heart of the White Salmon kayaking community. Free gear and boats for members — sign up online, check out 24/7.">
+<meta name="theme-color" content="#0E7C86">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2230%22 fill=%22%230E7C86%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 text-anchor=%22middle%22>🛶</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:ital,wght@0,400;0,600;0,800;1,400&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #10282B;
-    --deep: #0B3B40;
+    --ink: #1C2B2D;
     --teal: #0E7C86;
-    --foam: #F6F1E5;      /* river-worn cream */
-    --sand: #EDE4CE;
-    --punch: #FF5A1F;     /* safety-orange throwbag */
-    --sun: #F2B90F;      /* dry-bag yellow */
+    --teal-dark: #0A5D65;
+    --paper: #FFFFFF;
+    --mist: #F2F6F6;
+    --line: #E1E8E8;
+    --muted: #5C6F71;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body {
-    font-family: 'Archivo', system-ui, sans-serif;
-    background: var(--foam);
-    color: var(--ink);
-    overflow-x: hidden;
-  }
-  ::selection { background: rgba(255,90,31,0.25); }
-
-  .display { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; line-height: 0.92; letter-spacing: -0.02em; }
-  .scrawl { font-family: 'Caveat', cursive; }
-
-  /* grain overlay */
-  body::after {
-    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 999; opacity: 0.5;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  a { color: inherit; }
+  body { font-family: 'Archivo', system-ui, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.65; }
+  a { color: var(--teal); }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; }
   .btn {
-    display: inline-block; padding: 15px 30px; border-radius: 999px;
-    font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em;
-    text-decoration: none; border: 3px solid var(--ink); cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s; font-family: 'Archivo', sans-serif;
+    display: inline-block; padding: 12px 26px; border-radius: 8px; font-weight: 600; font-size: 15px;
+    text-decoration: none; cursor: pointer; border: 1.5px solid transparent; font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .btn:hover { transform: translate(-2px,-2px); box-shadow: 4px 4px 0 var(--ink); }
-  .btn:active { transform: translate(0,0); box-shadow: none; }
-  .btn-punch { background: var(--punch); color: #fff; border-color: var(--ink); }
-  .btn-ghost { background: transparent; color: var(--ink); }
-  .btn-deep { background: var(--deep); color: var(--foam); }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-quiet { background: transparent; color: var(--teal); border-color: var(--teal); }
+  .btn-quiet:hover { background: var(--mist); }
 
   /* ── Nav ── */
   nav {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(246,241,229,0.92); backdrop-filter: blur(10px);
-    border-bottom: 3px solid var(--ink);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px; gap: 16px;
+    position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; gap: 16px;
   }
-  nav .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-  nav .brand .mark {
-    width: 40px; height: 40px; border-radius: 12px; background: var(--deep);
-    display: grid; place-items: center; font-size: 22px; border: 3px solid var(--ink);
-  }
-  nav .brand span { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 15px; line-height: 1; }
-  nav .links { display: flex; gap: 22px; align-items: center; font-weight: 600; font-size: 14px; }
-  nav .links a { text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; }
-  nav .links a:hover { color: var(--punch); }
-  nav .links .btn { padding: 10px 20px; font-size: 13px; }
+  nav .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+  nav .brand .mark { width: 38px; height: 38px; border-radius: 10px; background: var(--teal); display: grid; place-items: center; font-size: 20px; }
+  nav .brand span { font-weight: 700; font-size: 16px; line-height: 1.15; }
+  nav .links { display: flex; gap: 26px; align-items: center; font-size: 15px; }
+  nav .links a { text-decoration: none; color: var(--ink); font-weight: 500; }
+  nav .links a:hover { color: var(--teal); }
+  nav .links .btn { padding: 9px 18px; font-size: 14px; }
   @media (max-width: 760px) { nav .links a:not(.btn) { display: none; } }
 
   /* ── Hero ── */
-  .hero {
-    position: relative; padding: 72px 24px 120px; text-align: center;
-    background:
-      radial-gradient(900px 480px at 15% -10%, rgba(14,124,134,0.18), transparent),
-      radial-gradient(700px 400px at 85% 10%, rgba(255,90,31,0.12), transparent),
-      var(--foam);
+  header.hero {
+    background: linear-gradient(180deg, var(--mist) 0%, #fff 100%);
+    padding: 84px 28px 72px; text-align: center;
   }
-  .hero h1 { font-size: clamp(52px, 11vw, 150px); }
-  .hero h1 .river { color: var(--teal); -webkit-text-stroke: 2px var(--ink); }
-  .hero h1 .punchline { color: var(--punch); }
-  .hero .sub { font-size: clamp(17px, 2.4vw, 22px); font-weight: 600; max-width: 620px; margin: 26px auto 34px; line-height: 1.5; }
-  .hero .sub em { font-style: normal; background: var(--sun); padding: 0 6px; border-radius: 4px; box-decoration-break: clone; }
-  .hero .ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .hero h1 { font-size: clamp(32px, 5.5vw, 52px); font-weight: 700; max-width: 760px; margin: 0 auto 18px; }
+  .hero p { font-size: 18px; color: var(--muted); max-width: 640px; margin: 0 auto 30px; }
+  .hero .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hero .note { margin-top: 22px; font-size: 14px; color: var(--muted); }
 
-  .sticker {
-    position: absolute; padding: 10px 16px; border: 3px solid var(--ink); border-radius: 999px;
-    font-family: 'Archivo Black', 'Archivo', sans-serif; font-size: 13px; text-transform: uppercase; background: #fff;
-    box-shadow: 4px 4px 0 var(--ink); white-space: nowrap;
-  }
-  .sticker.s1 { top: 60px; left: 6%; transform: rotate(-8deg); background: var(--sun); }
-  .sticker.s2 { top: 130px; right: 5%; transform: rotate(6deg); background: #fff; }
-  .sticker.s3 { bottom: 150px; left: 10%; transform: rotate(4deg); background: var(--punch); color: #fff; }
-  .sticker.s4 { bottom: 110px; right: 9%; transform: rotate(-5deg); background: var(--teal); color: #fff; }
-  @media (max-width: 900px) { .sticker.s1, .sticker.s2 { display: none; } .sticker.s3 { left: 4%; bottom: 40px; } .sticker.s4 { right: 3%; bottom: 92px; } }
-  @media (max-width: 620px) {
-    .hero { padding-bottom: 170px; }
-    .sticker.s3 { left: 8%; bottom: 46px; transform: rotate(-4deg); }
-    .sticker.s4 { right: 8%; bottom: 96px; transform: rotate(3deg); }
-  }
+  section { padding: 72px 28px; }
+  section.alt { background: var(--mist); }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  .eyebrow { color: var(--teal); font-weight: 700; text-transform: uppercase; font-size: 12.5px; letter-spacing: 0.09em; margin-bottom: 10px; }
+  h2 { font-size: clamp(24px, 3.6vw, 32px); font-weight: 700; margin-bottom: 14px; }
+  .lede { font-size: 16.5px; color: var(--muted); max-width: 660px; }
 
-  /* wave divider */
-  .wave { display: block; width: 100%; height: 60px; margin-bottom: -1px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 36px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+  .alt .card { box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .card p, .card li { font-size: 15px; color: var(--muted); }
+  .card .step { width: 32px; height: 32px; border-radius: 50%; background: var(--teal); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px; margin-bottom: 14px; }
 
-  /* ── Marquee ── */
-  .marquee { background: var(--ink); color: var(--foam); overflow: hidden; border-block: 3px solid var(--ink); }
-  .marquee .track {
-    display: inline-flex; gap: 48px; padding: 14px 0; white-space: nowrap;
-    font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 16px; letter-spacing: 0.08em;
-    animation: scroll 26s linear infinite;
-  }
-  .marquee .track span .o { color: var(--punch); } .marquee .track span .t { color: #57C7D0; }
-  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  ul.plain { list-style: none; }
+  ul.plain li { padding: 9px 0 9px 26px; position: relative; border-bottom: 1px solid var(--line); }
+  ul.plain li:last-child { border-bottom: none; }
+  ul.plain li::before { content: '✓'; position: absolute; left: 0; color: var(--teal); font-weight: 700; }
 
-  section { padding: 90px 24px; }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  .kicker { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; color: var(--punch); font-size: 14px; letter-spacing: 0.12em; margin-bottom: 12px; }
-  h2.display { font-size: clamp(36px, 6vw, 64px); margin-bottom: 18px; }
-  .lede { font-size: 18px; line-height: 1.6; max-width: 640px; font-weight: 400; }
+  .gear-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .gear-list span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 14px; color: var(--ink); }
+  .alt .gear-list span { background: #fff; }
 
-  /* ── How it works ── */
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; margin-top: 48px; }
-  .step {
-    background: #fff; border: 3px solid var(--ink); border-radius: 22px; padding: 28px;
-    box-shadow: 6px 6px 0 var(--ink); position: relative;
-  }
-  .step:nth-child(2) { transform: rotate(0.7deg); } .step:nth-child(3) { transform: rotate(-0.7deg); }
-  .step .num {
-    position: absolute; top: -20px; left: 22px; width: 44px; height: 44px; border-radius: 50%;
-    background: var(--punch); color: #fff; border: 3px solid var(--ink);
-    display: grid; place-items: center; font-family: 'Archivo Black', 'Archivo', sans-serif; font-size: 18px;
-  }
-  .step h3 { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 20px; margin: 14px 0 10px; }
-  .step p { font-size: 15px; line-height: 1.55; }
-  .step .art { font-size: 40px; }
-  .step code { background: var(--sand); border-radius: 6px; padding: 2px 8px; font-weight: 700; }
+  .policy { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .policy:last-child { border-bottom: none; }
+  .policy .ic { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; background: var(--mist); display: grid; place-items: center; font-size: 17px; }
+  .policy p { font-size: 15px; }
+  .policy p b { display: block; color: var(--ink); }
+  .policy p span { color: var(--muted); }
 
-  /* ── Gear wall ── */
-  .dark { background: var(--deep); color: var(--foam); }
-  .dark .kicker { color: var(--sun); }
-  .gear-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 44px; }
-  .gear-card {
-    border: 3px solid var(--foam); border-radius: 18px; padding: 22px 16px; text-align: center;
-    background: rgba(255,255,255,0.04); transition: transform 0.15s, background 0.15s;
-  }
-  .gear-card:hover { transform: translateY(-4px) rotate(-1deg); background: rgba(255,255,255,0.1); }
-  .gear-card .em { font-size: 34px; display: block; margin-bottom: 8px; }
-  .gear-card b { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 13px; letter-spacing: 0.05em; }
-  .gear-note { margin-top: 30px; font-size: 15px; opacity: 0.85; }
-  .gear-note .scrawl { font-size: 24px; color: var(--sun); }
+  .visit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 32px; }
 
-  /* ── Culture ── */
-  .culture .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-top: 48px; }
-  .polaroid {
-    background: #fff; border: 3px solid var(--ink); border-radius: 8px; padding: 12px 12px 18px;
-    box-shadow: 6px 6px 0 var(--ink);
-  }
-  .polaroid:nth-child(odd) { transform: rotate(-1.4deg); } .polaroid:nth-child(even) { transform: rotate(1.2deg); }
-  .polaroid .photo {
-    height: 190px; border-radius: 4px; border: 2px solid var(--ink);
-    display: grid; place-items: center; font-size: 54px; position: relative; overflow: hidden;
-  }
-  .polaroid .photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(14,124,134,0.25), rgba(255,90,31,0.2)); mix-blend-mode: multiply; }
-  .p1 .photo { background: linear-gradient(180deg, #BFE3E7 0%, #0E7C86 100%); }
-  .p2 .photo { background: linear-gradient(180deg, #FFD9A0 0%, #FF5A1F 100%); }
-  .p3 .photo { background: linear-gradient(180deg, #DDEFD3 0%, #2E9E5B 100%); }
-  .polaroid .cap { margin-top: 12px; text-align: center; }
-  .polaroid .cap .scrawl { font-size: 24px; line-height: 1.1; }
-  .polaroid .cap small { display: block; margin-top: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7a7c; font-weight: 600; }
+  .donate-amounts { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 18px; }
+  .amt { padding: 9px 18px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; font-weight: 600; font-size: 15px; cursor: pointer; font-family: inherit; color: var(--ink); }
+  .amt.on { border-color: var(--teal); background: var(--mist); color: var(--teal); }
+  #donate-msg { font-size: 13.5px; margin-top: 10px; color: var(--muted); }
 
-  /* ── Rules strip ── */
-  .rules { background: var(--sun); border-block: 3px solid var(--ink); padding: 60px 24px; }
-  .rules .wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
-  .rule { display: flex; gap: 12px; align-items: flex-start; font-weight: 600; font-size: 15px; line-height: 1.45; }
-  .rule .ic { font-size: 24px; line-height: 1; }
-  .rules h2 { grid-column: 1 / -1; font-size: clamp(26px, 4vw, 40px); }
-
-  /* ── Support ── */
-  .support .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 44px; }
-  .support .col { background: #fff; border: 3px solid var(--ink); border-radius: 22px; padding: 32px; box-shadow: 6px 6px 0 var(--ink); }
-  .support h3 { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 22px; margin-bottom: 12px; }
-  .support p { font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
-  .donate-amounts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-  .amt {
-    padding: 10px 18px; border: 3px solid var(--ink); border-radius: 999px; background: var(--foam);
-    font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Archivo', sans-serif;
-  }
-  .amt.on { background: var(--punch); color: #fff; }
-  #donate-msg { font-size: 13px; margin-top: 10px; color: #6b7a7c; }
-
-  /* ── Footer ── */
-  footer { background: var(--ink); color: var(--foam); padding: 70px 24px 40px; }
-  footer .wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 32px; }
-  footer h4 { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: 14px; letter-spacing: 0.08em; margin-bottom: 14px; color: var(--sun); }
-  footer p, footer a { font-size: 14px; line-height: 1.7; opacity: 0.9; }
-  footer .fin { grid-column: 1 / -1; border-top: 1px solid rgba(246,241,229,0.2); margin-top: 20px; padding-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; opacity: 0.7; }
-  footer .big-send { font-family: 'Archivo Black', 'Archivo', sans-serif; text-transform: uppercase; font-size: clamp(40px, 9vw, 110px); line-height: 0.9; opacity: 0.14; margin-top: 40px; text-align: center; grid-column: 1 / -1; }
+  footer { background: var(--ink); color: #E9EFEF; padding: 56px 28px 36px; }
+  footer .wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; }
+  footer h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #8FB8BC; margin-bottom: 12px; }
+  footer p, footer a { font-size: 14px; line-height: 1.8; color: #E9EFEF; }
+  footer .fin { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 18px; padding-top: 18px; font-size: 12.5px; color: #8FB8BC; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 </style>
 </head>
 <body>
@@ -206,135 +109,134 @@
 <nav>
   <a class="brand" href="#top"><span class="mark">🛶</span><span>White Salmon<br>Boat Library</span></a>
   <div class="links">
-    <a href="#how">How it works</a>
-    <a href="#gear">The gear</a>
-    <a href="#culture">Culture</a>
+    <a href="#membership">Membership</a>
+    <a href="#gear">The Gear</a>
+    <a href="#policies">Policies</a>
+    <a href="#visit">Visit</a>
     <a href="#support">Support</a>
-    <a class="btn btn-punch" href="/app/" id="app-link">Open the app</a>
+    <a class="btn btn-primary" href="/app/">Member sign in</a>
   </div>
 </nav>
 
 <header class="hero" id="top">
-  <div class="sticker s1">Est. 2022 · BZ Corner, WA</div>
-  <div class="sticker s2">100% free · donation powered</div>
-  <div class="sticker s3">Mullets welcome</div>
-  <div class="sticker s4">Shed open 24/7</div>
-  <h1 class="display">Free boats.<br><span class="river">Real</span> <span class="punchline">whitewater.</span></h1>
-  <p class="sub">A community gear library on the banks of the White Salmon. <em>Join online, get the shed code, go paddle.</em> No fees, no gatekeeping, no ego. Bring it back clean and tell us if you dinged it.</p>
+  <h1>Free boats and gear for the White Salmon community</h1>
+  <p>The White Salmon Boat Library is a local, donation-based non-profit in the heart of the White Salmon kayaking community. We lend quality whitewater gear to our members free of charge, so anyone can get on the river — financially risk-free.</p>
   <div class="ctas">
-    <a class="btn btn-punch" href="/app/#/join">Become a member — free</a>
-    <a class="btn btn-ghost" href="#how">How it works</a>
+    <a class="btn btn-primary" href="/app/#/join">Become a member — it's free</a>
+    <a class="btn btn-quiet" href="#membership">How it works</a>
   </div>
+  <div class="note">Open 24/7 for members · The Missing Corner, BZ Corner, WA</div>
 </header>
 
-<svg class="wave" viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,30 C240,60 480,0 720,30 C960,60 1200,0 1440,30 L1440,60 L0,60 Z" fill="#10282B"/></svg>
-
-<div class="marquee" aria-hidden="true">
-  <div class="track">
-    <span>Shred <b class="o">·</b> Shrig <b class="t">·</b> Send</span><span>Business up front <b class="o">·</b> Party downstream</span><span>PFD on <b class="t">·</b> Ego off</span><span>BZ Corner → Husum</span><span>Boofs are free</span>
-    <span>Shred <b class="o">·</b> Shrig <b class="t">·</b> Send</span><span>Business up front <b class="o">·</b> Party downstream</span><span>PFD on <b class="t">·</b> Ego off</span><span>BZ Corner → Husum</span><span>Boofs are free</span>
-  </div>
-</div>
-
-<section id="how">
+<section id="mission">
   <div class="wrap">
-    <div class="kicker">Self-serve since day one</div>
-    <h2 class="display">Three steps to the put-in</h2>
-    <p class="lede">The old paper checkout board went digital. Every safeguard is baked in, so the shed can stay open around the clock without anyone standing behind a counter.</p>
-    <div class="steps">
-      <div class="step"><span class="num">1</span><div class="art">✍️</div>
-        <h3>Join online</h3>
-        <p>Free forever. Sign the waiver once, tell us your experience level, and you're a member. New to whitewater? Rad — you'll just paddle with a buddy who knows the lines.</p>
-      </div>
-      <div class="step"><span class="num">2</span><div class="art">🔑</div>
-        <h3>Get the code</h3>
-        <p>Pick your gear in the app, agree to the river rules, and the shed code lands on your screen — like <code>384942</code>. Grab your kit, scramble the lock, go.</p>
-      </div>
-      <div class="step"><span class="num">3</span><div class="art">🌊</div>
-        <h3>Go paddle</h3>
-        <p>Send it. Bring everything back drained and clean, mark it returned in the app, and be honest about damage — that honesty is what keeps the boats floating.</p>
-      </div>
-    </div>
+    <div class="eyebrow">Our mission</div>
+    <h2>Everyone should have the opportunity to enjoy this sport</h2>
+    <p class="lede">We aspire to promote whitewater kayaking, cultivate a love of the outdoors, and minimize the social and economic barriers to river sports. The library offers newcomers access to gear and boats — and a way to integrate into the community that comes with them.</p>
   </div>
 </section>
 
-<svg class="wave" viewBox="0 0 1440 60" preserveAspectRatio="none"><path d="M0,30 C240,0 480,60 720,30 C960,0 1200,60 1440,30 L1440,60 L0,60 Z" fill="#0B3B40"/></svg>
-
-<section class="dark" id="gear" style="padding-top: 40px;">
+<section class="alt" id="membership">
   <div class="wrap">
-    <div class="kicker">The gear wall</div>
-    <h2 class="display">30+ full setups,<br>zero dollars</h2>
-    <p class="lede">All donated, all maintained by volunteers, all free to borrow. Creekers to duckies, GreenJackets to throwbags.</p>
-    <div class="gear-grid">
-      <div class="gear-card"><span class="em">🛶</span><b>Creek boats</b></div>
-      <div class="gear-card"><span class="em">🚣</span><b>River runners</b></div>
-      <div class="gear-card"><span class="em">🎈</span><b>Inflatables</b></div>
-      <div class="gear-card"><span class="em">🏓</span><b>Paddles</b></div>
-      <div class="gear-card"><span class="em">🦺</span><b>PFDs</b></div>
-      <div class="gear-card"><span class="em">🪖</span><b>Helmets</b></div>
-      <div class="gear-card"><span class="em">🩱</span><b>Spray skirts</b></div>
-      <div class="gear-card"><span class="em">🧥</span><b>Drytops</b></div>
-      <div class="gear-card"><span class="em">🪢</span><b>Throwbags</b></div>
-    </div>
-    <p class="gear-note"><span class="scrawl">Live availability in the app →</span> &nbsp;every item has a code, a condition report, and a story.</p>
-  </div>
-</section>
-
-<section class="culture" id="culture">
-  <div class="wrap">
-    <div class="kicker">The vibe</div>
-    <h2 class="display">Business up front,<br>party downstream</h2>
-    <p class="lede">The White Salmon corridor has always run on borrowed boats and free beta. The library just gives that culture a roof. Show up new, leave with a crew.</p>
-    <div class="cards">
-      <div class="polaroid p1"><div class="photo">🤙</div>
-        <div class="cap"><div class="scrawl">"Borrowed the Zen, kept the stoke."</div><small>First lap · BZ to Husum</small></div>
-      </div>
-      <div class="polaroid p2"><div class="photo">💇</div>
-        <div class="cap"><div class="scrawl">Flow-bros &amp; river mullets</div><small>Orientation night · Tuesdays 5:30</small></div>
-      </div>
-      <div class="polaroid p3"><div class="photo">🍻</div>
-        <div class="cap"><div class="scrawl">Repair night = pizza night</div><small>Volunteer shifts · claim one in the app</small></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="rules">
-  <div class="wrap">
-    <h2 class="display">The river rules</h2>
-    <div class="rule"><span class="ic">🦺</span>PFD on whenever you're on the water. Non-negotiable.</div>
-    <div class="rule"><span class="ic">🚫</span>Zero tolerance for drugs &amp; alcohol with library gear. The river's enough.</div>
-    <div class="rule"><span class="ic">👯</span>New to the sport? You paddle with an experienced buddy. That's how everyone here learned.</div>
-    <div class="rule"><span class="ic">🤝</span>Report damage honestly. Nobody gets charged — the next paddler just deserves safe gear.</div>
-  </div>
-</div>
-
-<section class="support" id="support">
-  <div class="wrap">
-    <div class="kicker">Keep it floating</div>
-    <h2 class="display">Powered by donations<br>&amp; duct tape</h2>
+    <div class="eyebrow">Membership</div>
+    <h2>Joining is free and takes a few minutes</h2>
+    <p class="lede">Membership requires a signed waiver and a member profile — both are now completed online. Once you're signed up, you can check out gear any time.</p>
     <div class="cols">
-      <div class="col">
-        <h3>💸 Chip in</h3>
-        <p>Every dollar goes to gaskets, welds, spray skirts, and shed rent. A donation the size of one shuttle beer keeps a boat on the water for a season.</p>
+      <div class="card">
+        <div class="step">1</div>
+        <h3>Sign up online</h3>
+        <p>Create your member profile and sign the liability waiver electronically. Please tell us honestly about your whitewater experience — it helps us keep everyone safe.</p>
+      </div>
+      <div class="card">
+        <div class="step">2</div>
+        <h3>Come to an orientation</h3>
+        <p>New Member Orientations are Tuesdays at 5:30pm at the library. We'll show you the facility, the gear, and how checkout works. New paddlers are strongly encouraged to attend before their first checkout.</p>
+      </div>
+      <div class="card">
+        <div class="step">3</div>
+        <h3>Check out gear, any time</h3>
+        <p>The library is open 24/7 for members. Choose your gear online, complete the checkout, and you'll receive the door code right away — along with your return date.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gear">
+  <div class="wrap">
+    <div class="eyebrow">The gear</div>
+    <h2>Over 30 full sets of whitewater equipment</h2>
+    <p class="lede">All of it donated, all of it maintained by volunteers, all of it free to borrow. The library carries a wide range of whitewater kayaks and everything that goes with them:</p>
+    <div class="gear-list">
+      <span>Whitewater kayaks</span><span>Inflatable kayaks</span><span>Paddles</span><span>PFDs</span>
+      <span>Helmets</span><span>Spray skirts</span><span>Drytops</span><span>Throwbags</span>
+    </div>
+    <p class="lede" style="margin-top: 24px;">Live availability is in the member app — every item has an ID, a condition record, and an honest history.</p>
+  </div>
+</section>
+
+<section class="alt" id="policies">
+  <div class="wrap">
+    <div class="eyebrow">Library policies</div>
+    <h2>A few rules keep the library running</h2>
+    <p class="lede">All members agree to these when they join. Failure to comply can result in termination of membership.</p>
+    <div style="margin-top: 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px 26px;">
+      <div class="policy"><div class="ic">🦺</div><p><b>Wear a PFD</b><span>All participants must wear a suitable personal flotation device while on the water.</span></p></div>
+      <div class="policy"><div class="ic">🚫</div><p><b>Zero tolerance for drugs and alcohol</b><span>No drug or alcohol use when on the river with library gear.</span></p></div>
+      <div class="policy"><div class="ic">🤝</div><p><b>New paddlers go with experienced ones</b><span>If you have never been kayaking or are new to the sport, you must go with another person who can help you choose safe river sections and use the gear properly.</span></p></div>
+      <div class="policy"><div class="ic">💙</div><p><b>Respect everyone</b><span>Zero tolerance for any sexual, physical, emotional, or verbal harassment.</span></p></div>
+      <div class="policy"><div class="ic">📋</div><p><b>Check out and return honestly</b><span>Every item you borrow goes on your checkout, comes back clean and drained, and gets an honest condition report. Nobody is charged for honestly reported damage.</span></p></div>
+    </div>
+    <p style="margin-top: 18px; font-size: 14.5px;"><a href="/app/#/policies">Read the complete policies →</a></p>
+  </div>
+</section>
+
+<section id="visit">
+  <div class="wrap">
+    <div class="eyebrow">Visit us</div>
+    <h2>Find the library</h2>
+    <div class="visit">
+      <div class="card">
+        <h3>📍 Location</h3>
+        <p>The Missing Corner community center<br>BZ Corner, Washington<br>Directly across the road from the Mini Mart — take a right on Glenwood Hwy off the 141 and we're on the immediate right.</p>
+      </div>
+      <div class="card">
+        <h3>🕐 Hours</h3>
+        <p>Open 24/7 for WSBL members via the door code you receive at checkout.</p>
+      </div>
+      <div class="card">
+        <h3>👋 New Member Orientation</h3>
+        <p>Tuesdays at 5:30pm at the library. Come meet the community — no gear or experience required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="support">
+  <div class="wrap">
+    <div class="eyebrow">Support the library</div>
+    <h2>The library runs on donations and volunteers</h2>
+    <div class="cols">
+      <div class="card">
+        <h3>Donate</h3>
+        <p>Every dollar goes toward gear repair, replacement parts, and keeping the library free for everyone.</p>
         <div class="donate-amounts" id="amounts">
           <button class="amt" data-cents="1000">$10</button>
           <button class="amt on" data-cents="2500">$25</button>
           <button class="amt" data-cents="5000">$50</button>
           <button class="amt" data-cents="10000">$100</button>
         </div>
-        <button class="btn btn-punch" id="donate-btn">Donate</button>
+        <button class="btn btn-primary" id="donate-btn">Donate</button>
         <div id="donate-msg"></div>
       </div>
-      <div class="col">
-        <h3>🔧 Give time</h3>
-        <p>Repair nights, orientation Tuesdays, inventory audits. Claim a volunteer shift in the app — no experience needed, mullet optional but encouraged.</p>
-        <a class="btn btn-deep" href="/app/#/shifts">See volunteer shifts</a>
+      <div class="card">
+        <h3>Volunteer</h3>
+        <p>Help with orientations, gear repair nights, and inventory. Members can sign up for volunteer shifts right in the app.</p>
+        <p style="margin-top: 16px;"><a class="btn btn-quiet" href="/app/#/shifts">See volunteer shifts</a></p>
       </div>
-      <div class="col">
-        <h3>🛶 Donate gear</h3>
-        <p>Outgrew your creeker? Extra drytop gathering dust? Bring it by the shed or catch us at orientation — we'll code it, log it, and lend it out.</p>
-        <a class="btn btn-ghost" href="https://www.instagram.com/whitesalmonboatlibrary/" target="_blank" rel="noopener">DM @whitesalmonboatlibrary</a>
+      <div class="card">
+        <h3>Donate gear</h3>
+        <p>Quality used whitewater equipment finds a second life here. Bring it by during an orientation, or reach out first.</p>
+        <p style="margin-top: 16px;"><a class="btn btn-quiet" href="https://www.instagram.com/whitesalmonboatlibrary/" target="_blank" rel="noopener">Message us</a></p>
       </div>
     </div>
   </div>
@@ -343,37 +245,30 @@
 <footer>
   <div class="wrap">
     <div>
-      <h4>The shed</h4>
-      <p>The Missing Corner · BZ Corner, WA<br>Hwy 141 at Glenwood Hwy,<br>across from the BZ Corner Mini Mart<br>Open 24/7 for members</p>
+      <h4>White Salmon Boat Library</h4>
+      <p>A local, donation-based non-profit in the heart of the White Salmon kayaking community.</p>
     </div>
     <div>
-      <h4>Orientation</h4>
-      <p>New Member Orientation<br>Tuesdays · 5:30pm at the shed<br>Come meet the crew</p>
+      <h4>Visit</h4>
+      <p>The Missing Corner · BZ Corner, WA<br>Across from the Mini Mart<br>Open 24/7 for members</p>
     </div>
     <div>
       <h4>Links</h4>
-      <p><a href="/app/">Member app</a><br><a href="/app/#/join">Become a member</a><br><a href="/app/#/policies">Policies &amp; safety</a></p>
+      <p><a href="/app/">Member app</a><br><a href="/app/#/join">Become a member</a><br><a href="/app/#/policies">Library policies</a><br><a href="https://www.instagram.com/whitesalmonboatlibrary/" target="_blank" rel="noopener">Instagram</a></p>
     </div>
-    <div>
-      <h4>Non-profit</h4>
-      <p>White Salmon Boat Library is a donation-based community non-profit. Gear is lent free of charge to members who sign the waiver.</p>
-    </div>
-    <div class="big-send">See you at the put-in</div>
     <div class="fin">
       <span>© White Salmon Boat Library</span>
-      <span class="scrawl" style="font-size:18px; opacity:1;">shred responsibly ✌️</span>
+      <span>Gear is lent free of charge to members with a signed waiver.</span>
     </div>
   </div>
 </footer>
 
 <script>
-  // Point app links at the deployed app (same-origin /app/ by default; override with ?app= or edit here)
   const APP_URL = new URLSearchParams(location.search).get('app') || './app/';
   document.querySelectorAll('a[href^="/app/"]').forEach(a => {
     a.href = APP_URL + a.getAttribute('href').slice('/app/'.length);
   });
 
-  // Donations — Stripe Checkout via the library API
   const API_URL = window.WSBL_API_URL || 'https://wsbl-api.workers.dev';
   let cents = 2500;
   document.querySelectorAll('.amt').forEach(b => b.addEventListener('click', () => {
@@ -391,9 +286,9 @@
       });
       const data = await res.json();
       if (res.ok && data.url) { location.href = data.url; }
-      else { msg.textContent = data.error || 'Donations are almost ready — check back soon (or bring cash to orientation).'; }
+      else { msg.textContent = data.error || 'Online donations are coming soon — you can also donate in person at an orientation.'; }
     } catch {
-      msg.textContent = 'Could not reach the donation server — try again in a minute.';
+      msg.textContent = 'Online donations are coming soon — you can also donate in person at an orientation.';
     }
   });
 </script>

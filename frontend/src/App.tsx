@@ -15,6 +15,7 @@ import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Members from './pages/Members';
 import Checkouts from './pages/Checkouts';
+import Calendar from './pages/Calendar';
 import Shifts from './pages/Shifts';
 import Incidents from './pages/Incidents';
 import AdminUsers from './pages/AdminUsers';
@@ -22,7 +23,7 @@ import Settings from './pages/Settings';
 
 type Page =
   | 'login' | 'join' | 'checkout' | 'mygear' | 'policies' | 'shifts'
-  | 'dashboard' | 'inventory' | 'members' | 'checkouts' | 'incidents' | 'admin' | 'settings';
+  | 'dashboard' | 'inventory' | 'members' | 'checkouts' | 'calendar' | 'incidents' | 'admin' | 'settings';
 
 const MEMBER_NAV: { page: Page; label: string }[] = [
   { page: 'checkout', label: 'Check Out' },
@@ -36,6 +37,7 @@ const STAFF_NAV: { page: Page; label: string }[] = [
   { page: 'inventory', label: 'Inventory' },
   { page: 'members', label: 'Members' },
   { page: 'checkouts', label: 'Checkouts' },
+  { page: 'calendar', label: 'Calendar' },
   { page: 'shifts', label: 'Schedule' },
   { page: 'incidents', label: 'Incidents' },
 ];
@@ -47,7 +49,7 @@ const ADMIN_NAV: { page: Page; label: string }[] = [
 
 function pageFromHash(): Page {
   const h = window.location.hash.replace('#/', '').replace('#', '');
-  const valid: Page[] = ['login', 'join', 'checkout', 'mygear', 'policies', 'shifts', 'dashboard', 'inventory', 'members', 'checkouts', 'incidents', 'admin', 'settings'];
+  const valid: Page[] = ['login', 'join', 'checkout', 'mygear', 'policies', 'shifts', 'dashboard', 'inventory', 'members', 'checkouts', 'calendar', 'incidents', 'admin', 'settings'];
   return (valid as string[]).includes(h) ? (h as Page) : 'login';
 }
 
@@ -115,7 +117,7 @@ export default function App() {
   const admin = user?.role === 'admin';
 
   // Route guard: members can't open staff pages
-  const staffPages: Page[] = ['dashboard', 'inventory', 'members', 'checkouts', 'incidents'];
+  const staffPages: Page[] = ['dashboard', 'inventory', 'members', 'checkouts', 'calendar', 'incidents'];
   const adminPages: Page[] = ['admin', 'settings'];
   let effective = page;
   if (!staff && staffPages.includes(page)) effective = 'checkout';
@@ -135,6 +137,7 @@ export default function App() {
         {effective === 'inventory' && staff && <Inventory />}
         {effective === 'members' && staff && <Members />}
         {effective === 'checkouts' && staff && <Checkouts />}
+        {effective === 'calendar' && staff && <Calendar />}
         {effective === 'incidents' && staff && <Incidents />}
         {effective === 'admin' && admin && <AdminUsers />}
         {effective === 'settings' && admin && <Settings />}
