@@ -5,12 +5,15 @@ import { error, HttpError } from './lib/http';
 import { AIError } from './lib/ai';
 import { privateRoutes, publicRoutes } from './routes';
 import { runHourly } from './pipeline';
+import { allowedEmails } from './lib/gmail';
 
 export type { Env };
 
+// In production the web app is served by this same Worker (same origin, no CORS needed).
+// FRONTEND_URL is only for local development with the Vite dev server.
 function corsOrigin(request: Request, env: Env): string {
   const origin = request.headers.get('Origin') ?? '';
-  const allowed = [env.FRONTEND_URL.replace(/\/$/, ''), 'http://localhost:5173', 'http://127.0.0.1:5173'];
+  const allowed = [env.FRONTEND_URL?.replace(/\/$/, ''), new URL(request.url).origin].filter(Boolean) as string[];
   return allowed.includes(origin) ? origin : allowed[0];
 }
 
@@ -31,12 +34,17 @@ export default {
     const origin = corsOrigin(request, env);
     if (request.method === 'OPTIONS') return withHeaders(new Response(null, { status: 204 }), origin);
     const path = new URL(request.url).pathname.replace(/\/$/, '') || '/';
+    if (!path.startsWith('/api/')) {
+      return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
+    }
     try {
       const pub = await publicRoutes(request, env, path);
       if (pub) return pub.status === 302 ? pub : withHeaders(pub, origin);
-      if (!path.startsWith('/api/')) return withHeaders(error('Not found', 404), origin);
       const user = await currentUser(request, env);
       if (!user) return withHeaders(error('Please sign in', 401), origin);
+      // Removing someone from ALLOWED_EMAILS signs them out immediately.
+      const allowed = allowedEmails(env);
+      if (!(allowed.includes(user.email) || (env.DEV_LOGIN === '1' && !allowed.length))) return withHeaders(error('Please sign in', 401), origin);
       const res = await privateRoutes(request, env, path, user);
       return withHeaders(res ?? error('Not found', 404), origin);
     } catch (e) {

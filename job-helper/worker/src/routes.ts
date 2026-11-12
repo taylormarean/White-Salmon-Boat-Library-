@@ -1,16 +1,18 @@
 import type { Env } from './env';
 import { body, dispatch, error, HttpError, json, type Route } from './lib/http';
-import { signJwt, verifyJwt, verifyPassword, type JwtPayload } from './lib/auth';
+import { signJwt, verifyJwt, type JwtPayload } from './lib/auth';
 import { addEvent, getPrefs, getSetting, getVoice, logActivity, setSetting, type AppRow, type JobRow, type OutboxRow } from './lib/db';
 import { mergePrefs, type Prefs } from './lib/prefs';
 import { aiConfigured, aiJSON } from './lib/ai';
 import { EXTRACT_JOB_INSTRUCTIONS, EXTRACT_JOB_SCHEMA, type ExtractJobResult } from './lib/prompts';
-import { authUrl, completeOAuth, disconnectGmail, gmailStatus } from './lib/gmail';
+import {
+  allowedEmails, authUrl, disconnectGmail, exchangeCode, gmailStatus, googleConfigured, ownerEmail, revokeToken, storeGmail, type AuthMode,
+} from './lib/gmail';
 import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
 import { extractApplicationEmail, htmlToText } from './lib/text';
 import {
-  afterContact, extractPdfText, importSentEmails, ingestJobs, learnVoice, prepareApplication, processFollowUps,
-  queueApplication, runSearch, scoreJob, sendOutboxItem, syncInbox,
+  afterContact, extractPdfText, getOnboarding, importGmailDocuments, importSentEmails, ingestJobs, learnVoice, ONBOARD_STEPS, prepareApplication,
+  processFollowUps, queueApplication, runOnboardStep, runSearch, scoreJob, sendOutboxItem, syncInbox, type OnboardStep,
 } from './pipeline';
 
 const DOC_KINDS = ['resume', 'cover_letter', 'email', 'writing_sample', 'reference', 'other'];
@@ -42,35 +44,104 @@ async function loadApp(env: Env, id: number) {
 
 // ---------------------------------------------------------------- public routes
 
+const DAY = 60 * 60 * 24;
+
+function frontUrl(env: Env, request: Request): string {
+  return (env.FRONTEND_URL || new URL(request.url).origin).replace(/\/$/, '');
+}
+
+async function upsertUser(env: Env, email: string, name: string): Promise<{ id: number; email: string; name: string }> {
+  const row = await env.DB.prepare(
+    `INSERT INTO users (email, name, last_login_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(email) DO UPDATE SET name = CASE WHEN excluded.name != '' THEN excluded.name ELSE users.name END, last_login_at = datetime('now')
+     RETURNING id, email, name`,
+  ).bind(email, name || email.split('@')[0]).first<{ id: number; email: string; name: string }>();
+  return row!;
+}
+
+/** First time she signs in, use her Google name and address as her application contact details. */
+async function fillPrefsFromGoogle(env: Env, name: string, email: string): Promise<void> {
+  const prefs = await getPrefs(env);
+  if (prefs.name && prefs.email) return;
+  await setSetting(env, 'prefs', { ...prefs, name: prefs.name || name, email: prefs.email || email });
+}
+
 export async function publicRoutes(request: Request, env: Env, path: string): Promise<Response | null> {
   if (path === '/api/health') return json({ ok: true });
 
-  if (path === '/api/login' && request.method === 'POST') {
-    const b = await body<{ email?: string; password?: string }>(request);
+  if (path === '/api/auth/config' && request.method === 'GET') {
+    return json({ google: googleConfigured(env), dev_login: env.DEV_LOGIN === '1', ready: allowedEmails(env).length > 0 || env.DEV_LOGIN === '1' });
+  }
+
+  // "Sign in with Google" — a plain link; the browser is redirected to Google's consent screen.
+  if (path === '/api/auth/google' && request.method === 'GET') {
+    const front = frontUrl(env, request);
+    if (!googleConfigured(env)) return Response.redirect(`${front}/#/login?error=${encodeURIComponent('Google sign-in isn’t set up yet (run npm run setup).')}`, 302);
+    const mode: AuthMode = new URL(request.url).searchParams.get('mode') === 'helper' ? 'helper' : 'owner';
+    const state = await signJwt(env, { sub: 0, email: '', name: '', purpose: `login_${mode}` }, 600);
+    return Response.redirect(authUrl(env, new URL(request.url).origin, state, mode), 302);
+  }
+
+  // Local development only: sign in by email without Google.
+  if (path === '/api/auth/dev' && request.method === 'POST' && env.DEV_LOGIN === '1') {
+    const b = await body<{ email?: string }>(request);
     const email = (b.email ?? '').trim().toLowerCase();
-    const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM activity_log WHERE kind = 'login_failed' AND message = ? AND created_at >= datetime('now','-15 minutes')").bind(email).first<{ n: number }>();
-    if ((recent?.n ?? 0) >= 8) return error('Too many attempts — wait 15 minutes and try again.', 429);
-    const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first<{ id: number; email: string; name: string; password_hash: string }>();
-    if (!user || !(await verifyPassword(b.password ?? '', user.password_hash))) {
-      await logActivity(env, 'login_failed', email);
-      return error('That email and password don’t match.', 401);
-    }
-    const token = await signJwt(env, { sub: user.id, email: user.email, name: user.name }, 60 * 60 * 24 * 30);
-    return json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    const allowed = allowedEmails(env);
+    if (!email || (allowed.length && !allowed.includes(email))) return error('Not on the guest list', 403);
+    const u = await upsertUser(env, email, email.split('@')[0]);
+    return json({ token: await signJwt(env, { sub: u.id, email: u.email, name: u.name }, 30 * DAY) });
   }
 
   if (path === '/api/google/callback' && request.method === 'GET') {
     const url = new URL(request.url);
-    const back = (q: string) => Response.redirect(`${env.FRONTEND_URL.replace(/\/$/, '')}/#/settings?${q}`, 302);
+    const front = frontUrl(env, request);
+    const go = (hash: string) => Response.redirect(`${front}/#/${hash}`, 302);
     const state = await verifyJwt(env, url.searchParams.get('state') ?? '');
-    if (!state || state.purpose !== 'google_oauth') return back('gmail=error&reason=expired');
-    if (url.searchParams.get('error')) return back(`gmail=error&reason=${encodeURIComponent(url.searchParams.get('error')!)}`);
+    const purpose = state?.purpose ?? '';
+    const isConnect = purpose === 'connect';
+    const fail = (msg: string) => go(isConnect ? `settings?gmail=error&reason=${encodeURIComponent(msg)}` : `login?error=${encodeURIComponent(msg)}`);
+    if (!state || !['login_owner', 'login_helper', 'connect'].includes(purpose)) return fail('That sign-in link expired. Please try again.');
+    if (url.searchParams.get('error')) return fail(url.searchParams.get('error') === 'access_denied' ? 'Sign-in was cancelled.' : `Google said: ${url.searchParams.get('error')}`);
+
     try {
-      const email = await completeOAuth(env, url.searchParams.get('code') ?? '');
-      await logActivity(env, 'gmail', `Connected Gmail ${email}`);
-      return back('gmail=connected');
+      const login = await exchangeCode(env, url.origin, url.searchParams.get('code') ?? '');
+      const giveBack = () => revokeToken(login.tokens.refresh_token ?? login.tokens.access_token);
+      const allowed = allowedEmails(env);
+      if (!allowed.length) {
+        await giveBack();
+        return fail('The app isn’t finished setting up (no ALLOWED_EMAILS). Ask whoever installed it to run npm run setup.');
+      }
+      if (!login.verified || !allowed.includes(login.email)) {
+        await giveBack();
+        await logActivity(env, 'login_failed', login.email);
+        return fail(`${login.email} isn’t on this app’s list of people who can sign in.`);
+      }
+      const isOwner = login.email === ownerEmail(env);
+
+      if (isConnect) {
+        if (!isOwner) {
+          await giveBack();
+          return fail(`Please connect ${ownerEmail(env)}’s Gmail — that’s the address applications are sent from.`);
+        }
+        if (!(await storeGmail(env, login))) return fail('Google didn’t give permission to send and read email. Please try again and leave both boxes ticked.');
+        await logActivity(env, 'gmail', `Connected Gmail ${login.email}`);
+        return go('settings?gmail=connected');
+      }
+
+      const user = await upsertUser(env, login.email, login.name);
+      let gmailOk = true;
+      if (isOwner) {
+        gmailOk = (await storeGmail(env, login)) || (await gmailStatus(env)).connected;
+        await fillPrefsFromGoogle(env, login.name, login.email);
+        if (gmailOk) await logActivity(env, 'gmail', `Signed in and connected Gmail ${login.email}`);
+      } else if (login.tokens.refresh_token || login.gmailGranted) {
+        await giveBack(); // a helper's own mailbox is never used
+      }
+      await setSetting(env, 'app_url', front);
+      const token = await signJwt(env, { sub: user.id, email: user.email, name: user.name }, 30 * DAY);
+      return go(`auth?token=${encodeURIComponent(token)}${gmailOk ? '' : '&gmail=missing'}`);
     } catch (e) {
-      return back(`gmail=error&reason=${encodeURIComponent(e instanceof Error ? e.message : 'unknown')}`);
+      return fail(e instanceof Error ? e.message : 'Sign-in failed');
     }
   }
   return null;
@@ -80,7 +151,21 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
 
 export async function privateRoutes(request: Request, env: Env, path: string, user: JwtPayload): Promise<Response | null> {
   const routes: Route[] = [
-    ['GET', '/api/me', async () => json({ user: { id: user.sub, email: user.email, name: user.name } })],
+    ['GET', '/api/me', async () => json({
+      user: { id: user.sub, email: user.email, name: user.name },
+      is_owner: user.email === ownerEmail(env),
+      owner_email: ownerEmail(env),
+      gmail: await gmailStatus(env),
+      onboarding: await getOnboarding(env),
+    })],
+    ['POST', '/api/onboard/:step', async (_r, p) => {
+      if (!(ONBOARD_STEPS as readonly string[]).includes(p.step)) return error('Unknown step', 404);
+      return json(await runOnboardStep(env, p.step as OnboardStep));
+    }],
+    ['POST', '/api/onboard-skip', async () => {
+      await setSetting(env, 'onboarding', { ...(await getOnboarding(env)), done: true });
+      return json({ ok: true });
+    }],
 
     // ---- overview
     ['GET', '/api/home', async () => {
@@ -162,7 +247,11 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       return json({ ok: true });
     }],
     ['POST', '/api/voice/learn', async () => json(await learnVoice(env))],
-    ['POST', '/api/voice/import-gmail', async () => json({ imported: await importSentEmails(env) })],
+    ['POST', '/api/voice/import-gmail', async () => {
+      const emails = await importSentEmails(env);
+      const documents = await importGmailDocuments(env);
+      return json({ imported: emails + documents, emails, documents });
+    }],
 
     // ---- jobs
     ['GET', '/api/jobs', async (req) => {
@@ -353,11 +442,10 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
     ['POST', '/api/followups/run', async () => json(await processFollowUps(env))],
 
     // ---- Gmail
-    ['GET', '/api/google/start', async () => {
-      const s = await gmailStatus(env);
-      if (!s.configured) return error('Gmail isn’t set up yet: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see README).', 400);
-      const state = await signJwt(env, { sub: user.sub, email: user.email, name: user.name, purpose: 'google_oauth' }, 600);
-      return json({ url: authUrl(env, state) });
+    ['GET', '/api/google/start', async (req) => {
+      if (!googleConfigured(env)) return error('Google isn’t set up yet — run npm run setup.', 400);
+      const state = await signJwt(env, { sub: user.sub, email: user.email, name: user.name, purpose: 'connect' }, 600);
+      return json({ url: authUrl(env, new URL(req.url).origin, state, 'connect') });
     }],
     ['POST', '/api/google/disconnect', async () => {
       await disconnectGmail(env);

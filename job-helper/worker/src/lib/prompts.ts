@@ -60,8 +60,18 @@ Ground rules for anything written in her name:
 
 // ---------------------------------------------------------------- 1. learn her voice
 
-export const LEARN_SCHEMA = obj({ voice_guide: str, career_record: str, open_questions: strArr });
-export type LearnResult = { voice_guide: string; career_record: string; open_questions: string[] };
+export const LEARN_SCHEMA = obj({
+  voice_guide: str,
+  career_record: str,
+  open_questions: strArr,
+  suggested: obj({ full_name: str, phone: str, home_location: str, target_roles: strArr }),
+});
+export type LearnResult = {
+  voice_guide: string;
+  career_record: string;
+  open_questions: string[];
+  suggested: { full_name: string; phone: string; home_location: string; target_roles: string[] };
+};
 
 export const LEARN_INSTRUCTIONS = `You are reading everything a job seeker has written — resumes, cover letters, emails, and other samples — so the app can write new applications that are factually accurate and sound like her.
 
@@ -71,13 +81,16 @@ Produce three things:
 
 2. career_record (markdown): every fact about her career found in the documents — contact details, work history (title, employer, location, dates, duties, accomplishments), education, licenses and certifications, software and tools, skills, volunteer work, awards, languages. Keep numbers exactly as written in the sources. Where sources disagree (e.g. different dates), note both. If an existing career record is provided, it includes corrections she made by hand: keep those facts unless a document clearly supersedes them, and merge in anything new.
 
-3. open_questions: short, friendly questions for her about things that would make her applications stronger or that are unclear — employment gaps, missing dates, accomplishments she could quantify, certifications whose status is unclear. At most 8.`;
+3. open_questions: short, friendly questions for her about things that would make her applications stronger or that are unclear — employment gaps, missing dates, accomplishments she could quantify, certifications whose status is unclear. At most 8.
+
+4. suggested: starting values for her job-search settings, taken from the documents — her full name, phone number, and home town as "City, ST" (from her most recent resume or signature; "" if unknown), and 3–6 job titles she is clearly qualified for and would plausibly want next, based on her recent roles (use common job-board titles, e.g. "Office Manager", "Medical Receptionist").`;
 
 export function learnMock(docCount: number): LearnResult {
   return {
     voice_guide: `## How she writes\n- Warm and direct; short paragraphs.\n- Opens emails with "Hi [first name]," and signs off "Thanks so much,".\n- Prefers concrete examples over adjectives.\n\n_(Mock voice guide built from ${docCount} document${docCount === 1 ? '' : 's'}.)_`,
     career_record: `# Linda Example\nWhite Salmon, WA · linda@example.com · (509) 555-0100\n\n## Work history\n### Office Manager — Gorge Family Dental · Hood River, OR · 2014–2024\n- Ran front desk, scheduling, and billing for a 6-provider practice\n- Trained 9 new front-office staff\n\n### Bookkeeper — Columbia Hardware · White Salmon, WA · 2008–2014\n- Payroll and AP/AR in QuickBooks for 25 employees\n\n## Skills\nQuickBooks, Dentrix, Microsoft Office, scheduling, customer service\n\n## Education\nAssociate of Applied Science, Accounting — Clark College`,
     open_questions: ['What did you do between 2024 and now? A short line (caregiving, travel, a course) avoids questions.', 'Do you know roughly how many patients the dental office saw per day?'],
+    suggested: { full_name: 'Linda Example', phone: '(509) 555-0100', home_location: 'White Salmon, WA', target_roles: ['Office Manager', 'Front Desk Coordinator', 'Bookkeeper', 'Medical Receptionist'] },
   };
 }
 

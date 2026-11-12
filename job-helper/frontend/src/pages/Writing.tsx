@@ -71,8 +71,8 @@ export default function Writing() {
           <button className="primary" onClick={() => fileRef.current?.click()} disabled={!!uploading}>{uploading ? <><span className="spinner" /> {uploading}</> : '📄 Add files'}</button>
           <button onClick={() => setPasting(!pasting)}>📝 Paste text</button>
           {status.data?.gmail.connected && (
-            <Btn busyText="Reading your sent mail…" onClick={async () => { const r = await api<{ imported: number }>('/voice/import-gmail', { method: 'POST' }); toast(`Added ${r.imported} of your sent emails`); docs.reload(); }}>
-              📬 Learn from my sent Gmail
+            <Btn busyText="Looking through your Gmail…" onClick={async () => { const r = await api<{ emails: number; documents: number }>('/voice/import-gmail', { method: 'POST' }); toast(`Added ${r.emails} emails and ${r.documents} resumes/letters from your Gmail`); docs.reload(); }}>
+              📬 Look in my Gmail again
             </Btn>
           )}
           <span className="small muted">Word (.docx), PDF, or text files. You can also drag files here.</span>

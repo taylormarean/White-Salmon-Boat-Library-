@@ -1,32 +1,34 @@
-name = "next-chapter-api"
+name = "next-chapter"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# The web app (frontend/dist) is served from this same Worker, so there's one address for everything.
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
 [triggers]
 # Hourly: send approved messages (business hours only), check Gmail for replies,
-# schedule follow-ups. Once a day (prefs.daily_hour, local time): search + score.
+# schedule follow-ups. Once a day (her chosen hour): job search + morning summary.
 crons = ["0 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "next-chapter-db"
-database_id = "PASTE_YOUR_D1_ID_HERE"
+database_id = "PASTE_YOUR_D1_ID_HERE"   # `npm run setup` fills this in
 
 [vars]
-FRONTEND_URL = "http://localhost:5173"   # where the web app lives (Gmail redirects back here)
-API_URL = "http://localhost:8787"        # this Worker's public URL (Gmail OAuth callback)
 AI_MODEL = "claude-opus-5-5"
 TIMEZONE = "America/Los_Angeles"
 
-# Secrets (wrangler secret put NAME):
-#   JWT_SECRET            required — any long random string (login tokens)
-#   TOKEN_ENC_KEY         required — any long random string (encrypts the Gmail token at rest)
-#   ANTHROPIC_API_KEY     required — Claude API key (console.anthropic.com)
-#   GOOGLE_CLIENT_ID      optional — Gmail sending + reply tracking (see README)
-#   GOOGLE_CLIENT_SECRET  optional
-#   ADZUNA_APP_ID         optional — local job search (developer.adzuna.com, free)
-#   ADZUNA_APP_KEY        optional
-#   USAJOBS_API_KEY       optional — government jobs near her (developer.usajobs.gov, free)
-#   USAJOBS_EMAIL         optional — the email you registered the USAJobs key with
-#   MOCK_AI               dev only — "1" returns canned AI output, no API calls
+# Secrets — `npm run setup` asks for these and stores them with `wrangler secret put`:
+#   ANTHROPIC_API_KEY     your Claude API key
+#   GOOGLE_CLIENT_ID      Google sign-in + Gmail (see README step 2)
+#   GOOGLE_CLIENT_SECRET
+#   ALLOWED_EMAILS        "mom@gmail.com, you@gmail.com" — the first one is the job seeker
+#   JWT_SECRET            generated automatically
+#   TOKEN_ENC_KEY         generated automatically
+#   ADZUNA_APP_ID / ADZUNA_APP_KEY / USAJOBS_API_KEY / USAJOBS_EMAIL   optional extra local job sources

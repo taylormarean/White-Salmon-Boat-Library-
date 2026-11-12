@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Btn, ErrorBox, Loading, useLoad, useToast, when } from '../ui';
+import type { Me } from '../App';
 
 interface Prefs {
   name: string; email: string; phone: string; home_location: string; radius_miles: number; target_roles: string[]; exclude_keywords: string[];
@@ -13,7 +14,7 @@ interface Status { ai: boolean; mock_ai: boolean; model: string; gmail: { config
 const lines = (a: string[]) => a.join('\n');
 const unlines = (s: string) => s.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
 
-export default function Settings({ query }: { query: URLSearchParams }) {
+export default function Settings({ query, me }: { query: URLSearchParams; me: Me | null }) {
   const prefs = useLoad<Prefs>('/prefs');
   const status = useLoad<Status>('/status');
   const activity = useLoad<{ id: number; kind: string; message: string; created_at: string }[]>('/activity');
@@ -78,12 +79,14 @@ export default function Settings({ query }: { query: URLSearchParams }) {
       <div className="section"><h2>Gmail</h2></div>
       <div className="card">
         {!s.gmail.configured ? (
-          <p className="muted">Gmail isn’t set up on the server yet (whoever installed the app needs to add the Google keys — see the README).</p>
+          <p className="muted">Google isn’t set up on the server yet — whoever installed the app needs to run <code>npm run setup</code>.</p>
         ) : s.gmail.connected ? (
           <div className="row between">
             <span>✅ Connected as <strong>{s.gmail.email}</strong>. Applications and follow-ups are sent from this address, and the app watches it for replies.</span>
-            <Btn className="ghost danger" onClick={async () => { await api('/google/disconnect', { method: 'POST' }); status.reload(); }}>Disconnect</Btn>
+            {me?.is_owner && <Btn className="ghost danger" onClick={async () => { if (confirm('Disconnect Gmail? The app will stop sending and stop noticing replies until you connect it again.')) { await api('/google/disconnect', { method: 'POST' }); status.reload(); } }}>Disconnect</Btn>}
           </div>
+        ) : me && !me.is_owner ? (
+          <p>Gmail isn’t connected. It has to be <strong>{me.owner_email}</strong>’s Gmail — ask her to sign in with Google and allow access.</p>
         ) : (
           <div className="row between">
             <span>Connect your Gmail so the app can send applications for you and notice when employers write back.</span>

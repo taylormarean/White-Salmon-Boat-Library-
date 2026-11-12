@@ -1,11 +1,12 @@
 -- Next Chapter — job search helper. Cloudflare D1 (SQLite).
 
+-- People who signed in with Google (only addresses in the ALLOWED_EMAILS secret can).
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_login_at TEXT
 );
 
 -- Key/value JSON blobs: prefs, voice (guide + career record), google tokens, run markers.

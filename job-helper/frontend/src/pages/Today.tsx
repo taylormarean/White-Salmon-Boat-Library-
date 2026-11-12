@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import type { Me } from '../App';
 import { Btn, ErrorBox, Fit, Loading, MessageCard, meta, MODE, StatusBadge, useLoad, when, type OutboxItem } from '../ui';
 
 interface Home {
@@ -18,9 +20,90 @@ function hello(name: string) {
   return `${h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}${first ? `, ${first}` : ''}!`;
 }
 
-export default function Today({ name }: { name: string }) {
+const STEPS: { key: string; label: string }[] = [
+  { key: 'emails', label: 'Reading emails you’ve written, to learn how you sound' },
+  { key: 'documents', label: 'Looking in your email for resumes and cover letters' },
+  { key: 'learn', label: 'Learning your work history and writing style' },
+  { key: 'search', label: 'Looking for jobs near you and online' },
+];
+
+/** First sign-in: set everything up from her Gmail, one visible step at a time. */
+function Setup({ me, onDone }: { me: Me; onDone: () => void }) {
+  const [results, setResults] = useState<Record<string, { ok: boolean; note: string }>>(me.onboarding.steps);
+  const [current, setCurrent] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+  const ran = useRef(false);
+  const canStart = me.gmail.connected;
+
+  const go = async () => {
+    if (ran.current) return;
+    ran.current = true;
+    setStarted(true);
+    for (const s of STEPS) {
+      if (results[s.key]?.ok) continue;
+      setCurrent(s.key);
+      try {
+        const st = await api<{ steps: Record<string, { ok: boolean; note: string }> }>(`/onboard/${s.key}`, { method: 'POST' });
+        setResults({ ...st.steps });
+      } catch (e) {
+        setResults((r) => ({ ...r, [s.key]: { ok: false, note: e instanceof Error ? e.message : String(e) } }));
+      }
+    }
+    setCurrent(null);
+  };
+  useEffect(() => { if (canStart) go(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [canStart]);
+  const finished = started && current === null;
+
+  return (
+    <div className="card hl">
+      <h1>Welcome{me.user.name ? `, ${me.user.name.split(' ')[0]}` : ''}! 🌱</h1>
+      {!canStart ? (
+        me.is_owner ? (
+          <>
+            <p>To set everything up for you, Next Chapter needs permission to use your Gmail — that’s how it learns how you write, finds your old resumes, and sends applications for you.</p>
+            <div className="row">
+              <Btn className="primary big" onClick={async () => { const r = await api<{ url: string }>('/google/start'); window.location.href = r.url; }}>Connect my Gmail</Btn>
+              <Btn className="ghost" onClick={async () => { await api('/onboard-skip', { method: 'POST' }); onDone(); }}>I’ll add my resume myself</Btn>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>You’re signed in as a helper. When <strong>{me.owner_email}</strong> signs in with Google, the app will set itself up from her email. You can also add her resume on the My Writing page.</p>
+            <Btn className="ghost" onClick={async () => { await api('/onboard-skip', { method: 'POST' }); onDone(); }}>OK</Btn>
+          </>
+        )
+      ) : (
+        <>
+          <p>I’m getting things ready for you. This takes a few minutes — you can watch, or come back later.</p>
+          {STEPS.map((s) => {
+            const r = results[s.key];
+            return (
+              <div key={s.key} className="check" style={{ alignItems: 'flex-start' }}>
+                <span style={{ width: '1.5rem' }}>{current === s.key ? <span className="spinner" /> : r ? (r.ok ? '✅' : '⚠️') : '⬜️'}</span>
+                <div>
+                  <div style={{ fontWeight: current === s.key ? 700 : 500 }}>{s.label}</div>
+                  {r && <div className="small muted">{r.note}</div>}
+                </div>
+              </div>
+            );
+          })}
+          {finished && (
+            <div className="row" style={{ marginTop: '1rem' }}>
+              <button className="primary big" onClick={onDone}>See what I found →</button>
+              {!results.learn?.ok && <a className="btn" href="#/writing">Add my resume</a>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Today({ me, reloadMe }: { me: Me | null; reloadMe: () => void }) {
   const home = useLoad<Home>('/home');
   const status = useLoad<Status>('/status');
+  const name = me?.user.name ?? '';
+  if (me && !me.onboarding.done) return <Setup me={me} onDone={() => { api('/onboard-skip', { method: 'POST' }).finally(() => { reloadMe(); home.reload(); status.reload(); }); }} />;
   if (home.error) return <ErrorBox error={home.error} />;
   if (!home.data || !status.data) return <Loading />;
   const h = home.data;
@@ -31,7 +114,7 @@ export default function Today({ name }: { name: string }) {
     { done: s.documents > 0, text: 'Add your resume and a few letters or emails you’ve written', href: '#/writing' },
     { done: s.has_career_record, text: 'Let the app learn your voice', href: '#/writing' },
     { done: !!h.prefs.home_location && h.prefs.target_roles.length > 0, text: 'Tell it where you live and what kind of work you want', href: '#/settings' },
-    { done: s.gmail.connected, text: 'Connect your Gmail so it can send applications and watch for replies', href: '#/settings' },
+    { done: s.gmail.connected, text: 'Connect Gmail so it can send applications and watch for replies', href: '#/settings' },
   ];
   const todo = setup.filter((x) => !x.done);
   const nothingToDo = !h.waiting.length && !h.ready.length;

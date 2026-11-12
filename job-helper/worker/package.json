@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "setup": "node scripts/setup.mjs",
+    "dev": "node -e \"require('fs').mkdirSync('../frontend/dist',{recursive:true})\" && wrangler dev",
+    "deploy": "npm --prefix ../frontend run build && wrangler deploy",
     "db:init": "wrangler d1 execute next-chapter-db --local --file=schema.sql",
-    "db:init:remote": "wrangler d1 execute next-chapter-db --remote --file=schema.sql",
-    "create-user": "node scripts/create-user.mjs",
+    "db:init:remote": "wrangler d1 execute next-chapter-db --remote --file=schema.sql --yes",
     "tail": "wrangler tail",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

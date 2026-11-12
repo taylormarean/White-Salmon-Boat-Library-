@@ -1,6 +1,13 @@
 # 🌱 Next Chapter — a job search helper for Mom
 
-A private web app that does most of the job hunt for her:
+A private web app that does most of the job hunt for her. She opens one link and taps **Sign in with Google**. That single step signs her in and connects her Gmail. The app then sets itself up:
+- reads emails she has written, to learn how she sounds
+- finds resumes and cover letters she has emailed before
+- learns her work history
+- fills in her search settings
+- runs the first job search
+
+After that:
 
 1. **Holds her documents and learns her voice.** She uploads resumes, cover letters, emails, and other writing (Word, PDF, text, or her Gmail sent folder). Claude reads them and builds:
    - a **career record**: every fact about her work history. Drafts may only use these facts.
@@ -33,7 +40,8 @@ A private web app that does most of the job hunt for her:
 - **Honesty:** every prompt tells Claude it may not invent or inflate employers, dates, titles, degrees, licenses, numbers, or skills. Each draft includes a "Before you send" note listing anything she should double-check.
 - **Scam screening:** postings that ask for money, gift cards, or bank or SSN details before an interview are flagged and scored ≤ 15.
 - **Prompt injection:** job postings and employer emails are passed to Claude as clearly marked outside content, so text in them is treated as information, not instructions.
-- **Gmail token:** encrypted at rest (AES-GCM). It uses only the `gmail.send` and `gmail.readonly` scopes. The app can't delete or change anything in her mailbox.
+- **Who can sign in:** only the Google accounts in the `ALLOWED_EMAILS` secret. The first address is the job seeker; anyone else listed is a helper. Helpers sign in through a separate link that asks Google for name and email only, never Gmail. If a helper uses her button by mistake, the Gmail access they granted is handed straight back. Removing an address from the list signs that person out immediately.
+- **Gmail token:** encrypted at rest (AES-GCM). It uses only the `gmail.send` and `gmail.readonly` scopes, so the app can't delete or change anything in her mailbox. Only her own Gmail can be connected.
 
 ### Why it doesn't auto-fill website applications
 
@@ -46,80 +54,51 @@ LinkedIn, Indeed, Workday, and most applicant-tracking systems forbid automated 
 | API + scheduler | Cloudflare Worker (TypeScript), hourly cron | [worker/](worker/) |
 | Database | Cloudflare D1 (SQLite) | [worker/schema.sql](worker/schema.sql) |
 | AI | Claude API via `@anthropic-ai/sdk` (structured outputs, web search tool, prompt caching, refusal fallbacks) | [worker/src/lib/ai.ts](worker/src/lib/ai.ts), [prompts.ts](worker/src/lib/prompts.ts) |
-| Email | Gmail API (OAuth) | [worker/src/lib/gmail.ts](worker/src/lib/gmail.ts) |
-| Web app | React + Vite, works on a phone | [frontend/](frontend/) |
+| Sign-in + email | Google OAuth: one consent covers sign-in and Gmail | [worker/src/lib/gmail.ts](worker/src/lib/gmail.ts) |
+| Web app | React + Vite, served by the same Worker (one address), works on a phone | [frontend/](frontend/) |
 
 The hourly cron sends approved messages, checks Gmail for replies, and drafts or closes follow-ups. Once a day, at her chosen hour, it also runs the job search and sends the morning summary.
 
-## Setup (about 45 minutes)
+## Setup (about 20 minutes, one time)
 
-You need: a Cloudflare account (free tier is fine), an Anthropic API key, and a Google account to create the Gmail OAuth app.
-
-### 1. Worker + database
+You need:
+- a computer with [Node.js 20+](https://nodejs.org/)
+- a free Cloudflare account (the script helps you make one)
+- your Claude API key from <https://console.anthropic.com/settings/keys>
+- a Google account, used to create the "Sign in with Google" keys
 
 ```bash
-cd job-helper/worker
+git clone <this repo> && cd <repo>/job-helper/worker
 npm install
-npx wrangler login
-npx wrangler d1 create next-chapter-db      # paste the database_id into wrangler.toml
-npm run db:init:remote
-
-npx wrangler secret put JWT_SECRET          # any long random string
-npx wrangler secret put TOKEN_ENC_KEY       # another long random string
-npx wrangler secret put ANTHROPIC_API_KEY   # from console.anthropic.com
-npx wrangler deploy                         # note the URL, e.g. https://next-chapter-api.<you>.workers.dev
+npm run setup
 ```
 
-In `wrangler.toml`:
-- set `API_URL` to the Worker URL
-- set `FRONTEND_URL` to wherever the web app will live (step 3)
-- set `TIMEZONE` if she isn't on Pacific time
+The script walks you through everything:
+1. Logs you in to Cloudflare. A browser window opens.
+2. Creates the database and its tables.
+3. Builds the web app and publishes it. It prints the address, e.g. `https://next-chapter.<you>.workers.dev`.
+4. Asks for your **Claude API key**. The key is hidden as you paste it. It's stored as an encrypted Cloudflare secret and never written to a file.
+5. Asks for **your mom's Gmail address**, plus yours if you want to help. Only these accounts can sign in.
+6. Shows the exact Google Cloud Console steps for the sign-in keys, with the redirect address already filled in. Then it asks for the client ID and secret.
+7. Optionally asks for free Adzuna and USAJobs keys, for more local and government job listings.
 
-Then deploy again.
+Then send her the address. To update the app later, pull the new code and run `npm run setup` again. It skips anything that's already done.
 
-Create her login (and one for yourself if you want to help):
+### The Google step, in a little more detail
 
-```bash
-node scripts/create-user.mjs mom@example.com "Her Name" 'a-strong-password' --remote
-```
+The script prints these with links. Do them in the [Google Cloud Console](https://console.cloud.google.com/):
+1. Create a project and enable the **Gmail API**.
+2. Under **Google Auth Platform → Branding**, give the app a name and your email. Under **Audience**, pick **External**.
+3. Under **Clients**, create a client of type **Web application**. Add the redirect URI the script printed: `https://<app address>/api/google/callback`.
+4. Under **Audience**, click **Publish app**, so it shows "In production". **Don't skip this.** While an app is in "Testing", Google expires its Gmail access every 7 days. No Google review is needed for family use. The first time she signs in, Google shows a "Google hasn't verified this app" page; she clicks **Advanced → Go to Next Chapter**. Tell her to expect it.
 
-### 2. Gmail (sending and reply tracking)
+### What she sees the first time
 
-1. Go to <https://console.cloud.google.com/>, create a project, and enable the **Gmail API**.
-2. Open **OAuth consent screen**, choose **External**, and fill in the app name and your email. Add the scopes `gmail.send` and `gmail.readonly`.
-3. Open **Credentials**, then **Create OAuth client ID**, then **Web application**. Add this Authorized redirect URI: `https://<your-worker-url>/api/google/callback`
-4. Store the client ID and secret:
-   `npx wrangler secret put GOOGLE_CLIENT_ID` and `npx wrangler secret put GOOGLE_CLIENT_SECRET`
-5. **Important:** on the consent screen, click **Publish app** (set it to "In production"). While an app is in "Testing", Google expires its refresh tokens every 7 days, so Gmail would silently disconnect each week. You don't need Google's verification for personal use. When she connects, she'll see a "Google hasn't verified this app" screen; she clicks **Advanced → Go to (app name)**.
-6. In the app, she goes to **Settings → Connect Gmail**.
+1. **Sign in with Google.** Google asks to let Next Chapter "send email on your behalf" and "read your email". She allows both.
+2. A **Welcome** screen shows the app getting ready, step by step. It reads her sent emails, pulls in resumes she has emailed, learns her history and voice, and runs the first search. This takes a few minutes.
+3. **Today** then shows her matches. She can look over the career record it learned on **My Writing**, and adjust her town, travel distance, and job types in **Settings**.
 
-### 3. Web app
-
-```bash
-cd job-helper/frontend
-npm install
-echo "VITE_API_URL=https://<your-worker-url>" > .env.local
-npm run build      # upload dist/ to Cloudflare Pages (or any static host)
-```
-
-With Cloudflare Pages: `npx wrangler pages deploy dist --project-name next-chapter`. Put the resulting URL into `FRONTEND_URL` in `wrangler.toml`, then redeploy the Worker.
-
-### 4. Optional: more local jobs
-
-Both are free:
-- **Adzuna** (<https://developer.adzuna.com/>):
-  `wrangler secret put ADZUNA_APP_ID` and `wrangler secret put ADZUNA_APP_KEY`
-- **USAJobs** (<https://developer.usajobs.gov/apikey-request/>), for federal jobs such as Forest Service and VA:
-  `wrangler secret put USAJOBS_API_KEY` and `wrangler secret put USAJOBS_EMAIL` (the email you registered with)
-
-Without these, local jobs come from the AI web scout plus any careers pages and feeds you add in Settings.
-
-### 5. First run with her
-
-1. **My Writing:** add her latest resume, two or three cover letters, and a handful of real emails. If Gmail is connected, **Learn from my sent Gmail** pulls in 25 recent sent emails.
-2. Tap **Learn my voice**. Read through the career record together, fix anything that's wrong, and answer the questions it asks.
-3. **Settings:** fill in her town, how far she'll drive, the kinds of jobs she wants, things to avoid, and minimum pay.
-4. **Today → Look for new jobs now.** Open a good match and tap **Help me apply**.
+If she unticks the Gmail boxes, she's still signed in, and the app offers a **Connect my Gmail** button. If no resume turns up in her email, she can add one on **My Writing**.
 
 ## Cost
 
@@ -134,14 +113,16 @@ Her profile is prompt-cached, so it's cheap to reuse across a day's fit checks. 
 
 ```bash
 cd job-helper/worker
-printf 'JWT_SECRET=dev-secret-0123456789abcdef\nTOKEN_ENC_KEY=dev-key-0123456789abcdef\nMOCK_AI=1\n' > .dev.vars
+printf 'JWT_SECRET=dev-secret-0123456789abcdef\nTOKEN_ENC_KEY=dev-key-0123456789abcdef\nMOCK_AI=1\nDEV_LOGIN=1\nFRONTEND_URL=http://localhost:5173\nALLOWED_EMAILS=mom@example.com\n' > .dev.vars
 npm run db:init
-node scripts/create-user.mjs mom@example.com "Test Mom" test-password-1
-npm run dev            # API on :8787
+npm run dev                                    # API on :8787
 
 cd ../frontend && npm install && npm run dev   # app on :5173
 ```
 
-`MOCK_AI=1` returns canned AI answers, so you can click through everything without an API key. Remove it, or set `ANTHROPIC_API_KEY` in `.dev.vars`, to use real Claude.
+- `DEV_LOGIN=1` adds an email-only sign-in box to the login page, so you don't need Google keys locally. Never set it in production.
+- `MOCK_AI=1` returns canned AI answers, so you can click through without an API key.
 
-Tests: `cd worker && npm test`. They cover the follow-up schedule, screening, salary parsing, reply matching, MIME building (including header-injection protection), every job-source parser, and Word export.
+**Tests:** `cd worker && npm test`
+- Unit tests cover the follow-up schedule, screening, salary parsing, reply matching, MIME building (including header-injection protection), every job-source parser, Word export and import, and Google scopes.
+- `test/signin.integration.test.ts` runs the real Worker in Cloudflare's local runtime against a fake Google. It checks Google sign-in, the allowed-email list, helper sign-in, revoking unwanted tokens, first-run setup from Gmail, and sending an application with attachments.

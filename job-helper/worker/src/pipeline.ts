@@ -15,7 +15,8 @@ import {
 import { cleanEmailBody, dedupeKey, extractApplicationEmail, prefilter, remoteLocationOk, truncate } from './lib/text';
 import { nextStep, isBusinessHours, localDate, localHour } from './lib/followup';
 import { matchApplication, senderAddress } from './lib/match';
-import { connectedEmail, getMessage, gmailStatus, listMessages, sendEmail } from './lib/gmail';
+import { connectedEmail, getAttachment, getMessage, gmailStatus, listMessages, sendEmail } from './lib/gmail';
+import { docxToText } from './lib/unzip';
 import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
 import { fetchAllSources, type SourceReport } from './sources';
 import type { RawJob } from './sources/types';
@@ -64,7 +65,19 @@ export async function learnVoice(env: Env): Promise<LearnResult> {
   const result = await aiJSON<LearnResult>(env, {
     instructions: LEARN_INSTRUCTIONS, user, schema: LEARN_SCHEMA, effort: 'high', mock: () => learnMock(docs.length),
   });
-  await setSetting(env, 'voice', { ...result, learned_at: new Date().toISOString() });
+  const { suggested, ...voice } = result;
+  await setSetting(env, 'voice', { ...voice, learned_at: new Date().toISOString() });
+
+  // Fill in any search settings she hasn't set yet from what the documents say. Never overwrite hers.
+  const prefs = await getPrefs(env);
+  const filled = {
+    ...prefs,
+    name: prefs.name || suggested.full_name,
+    phone: prefs.phone || suggested.phone,
+    home_location: prefs.home_location || suggested.home_location,
+    target_roles: prefs.target_roles.length ? prefs.target_roles : suggested.target_roles.slice(0, 6),
+  };
+  await setSetting(env, 'prefs', filled);
   await logActivity(env, 'voice', `Re-learned her voice from ${docs.length} documents`);
   return result;
 }
@@ -485,6 +498,99 @@ export async function importSentEmails(env: Env, max = 25): Promise<number> {
   return n;
 }
 
+const RESUME_NAME = /(resume|résumé|cv\b|curriculum|cover[\s_-]*letter)/i;
+
+/** Resumes and cover letters she has emailed before are already in her Gmail — pull in the newest few. */
+export async function importGmailDocuments(env: Env, maxFiles = 5): Promise<number> {
+  const ids = await listMessages(env, 'has:attachment {filename:pdf filename:docx} {resume résumé cv "cover letter" filename:resume filename:cv} newer_than:6y', 25);
+  const seen = new Set<string>();
+  let n = 0;
+  for (const { id } of ids) {
+    if (n >= maxFiles) break;
+    const m = await getMessage(env, id);
+    for (const a of m.attachments) {
+      if (n >= maxFiles) break;
+      const name = a.filename;
+      const ext = name.toLowerCase().split('.').pop();
+      if (!RESUME_NAME.test(name) || (ext !== 'pdf' && ext !== 'docx')) continue;
+      const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '').replace(/\d+/g, '');
+      if (seen.has(key)) continue; // newest copy of each file only
+      seen.add(key);
+      if (await env.DB.prepare('SELECT 1 FROM documents WHERE filename = ?').bind(`gmail:${id}:${name}`).first()) continue;
+      try {
+        const bytes = await getAttachment(env, id, a.attachmentId);
+        if (bytes.length > 10_000_000) continue;
+        const text = ext === 'docx' ? await docxToText(bytes) : await extractPdfText(env, bytesToBase64(bytes));
+        if (text.length < 200) continue;
+        const kind = /cover/i.test(name) ? 'cover_letter' : 'resume';
+        await env.DB.prepare('INSERT INTO documents (kind, title, content, filename) VALUES (?, ?, ?, ?)')
+          .bind(kind, `${name.replace(/\.[^.]+$/, '')} (from email, ${m.date.slice(0, 10)})`, text.slice(0, 200_000), `gmail:${id}:${name}`).run();
+        n++;
+      } catch (e) {
+        await logActivity(env, 'error', `Couldn't read ${name}: ${e instanceof Error ? e.message : e}`);
+      }
+    }
+  }
+  return n;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+// ------------------------------------------------------------------ first sign-in setup
+
+export const ONBOARD_STEPS = ['emails', 'documents', 'learn', 'search'] as const;
+export type OnboardStep = (typeof ONBOARD_STEPS)[number];
+export interface OnboardState { done: boolean; steps: Partial<Record<OnboardStep, { ok: boolean; note: string }>> }
+
+export async function getOnboarding(env: Env): Promise<OnboardState> {
+  return (await getSetting<OnboardState>(env, 'onboarding')) ?? { done: false, steps: {} };
+}
+
+/** One step of the first-time setup. The web app calls these in order and shows progress. */
+export async function runOnboardStep(env: Env, step: OnboardStep): Promise<OnboardState> {
+  const state = await getOnboarding(env);
+  let note = '';
+  let ok = true;
+  try {
+    if (step === 'emails') {
+      const n = (await gmailStatus(env)).connected ? await importSentEmails(env, 30) : 0;
+      note = n ? `Read ${n} emails you’ve written` : 'No sent emails to learn from';
+    } else if (step === 'documents') {
+      const n = (await gmailStatus(env)).connected ? await importGmailDocuments(env) : 0;
+      note = n ? `Found ${n} resume${n === 1 ? '' : 's'} or cover letter${n === 1 ? '' : 's'} in your email` : 'No resumes found in your email — you can add one on the My Writing page';
+    } else if (step === 'learn') {
+      const docs = await env.DB.prepare('SELECT COUNT(*) AS n FROM documents').first<{ n: number }>();
+      if (docs?.n) {
+        await learnVoice(env);
+        note = 'Learned your work history and how you write';
+      } else {
+        ok = false;
+        note = 'Nothing to learn from yet — add your resume on the My Writing page';
+      }
+    } else if (step === 'search') {
+      const prefs = await getPrefs(env);
+      if (!(await getVoice(env)).career_record || !prefs.home_location) {
+        ok = false;
+        note = 'Skipped the first search until your resume and town are in';
+      } else {
+        const r = await runSearch(env);
+        note = `Looked through job listings and found ${r.added} new ones`;
+      }
+    }
+  } catch (e) {
+    ok = false;
+    note = e instanceof Error ? e.message : String(e);
+  }
+  state.steps[step] = { ok, note };
+  if (step === ONBOARD_STEPS[ONBOARD_STEPS.length - 1]) state.done = true;
+  await setSetting(env, 'onboarding', state);
+  return state;
+}
+
 // ------------------------------------------------------------------ daily digest + cron
 
 async function sendDigest(env: Env): Promise<void> {
@@ -507,7 +613,7 @@ async function sendDigest(env: Env): Promise<void> {
     ...(matches.length ? ['New jobs that look like a good fit:', ...matches.map((m) => `  • ${m.title} — ${m.company} (${m.location ?? 'remote'}) · fit ${m.fit_score}`), ''] : []),
     ...(ready?.n ? [`${ready.n} application${ready.n === 1 ? ' is' : 's are'} drafted and ready for you to look over.`] : []),
     ...(waiting?.n ? [`${waiting.n} message${waiting.n === 1 ? ' is' : 's are'} waiting for your OK before sending.`] : []),
-    '', `Open the app: ${env.FRONTEND_URL}`,
+    '', `Open the app: ${(await getSetting<string>(env, 'app_url')) ?? env.FRONTEND_URL ?? ''}`,
   ];
   await sendEmail(env, { fromName: 'Next Chapter', to: status.email, subject: `Your job search today${replies.length ? ` — ${replies.length} repl${replies.length === 1 ? 'y' : 'ies'}` : ''}`, text: lines.join('\n') });
 }

@@ -1,37 +1,7 @@
-// PBKDF2 password hashing + HS256 JWT on Web Crypto (no dependencies).
+// HS256 JWT on Web Crypto (no dependencies).
 import type { Env } from '../env';
 
-const PBKDF2_ITERATIONS = 100_000;
 const enc = new TextEncoder();
-
-function toHex(buf: ArrayBuffer | Uint8Array): string {
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-function fromHex(hex: string): Uint8Array {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) out[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  return out;
-}
-async function derive(password: string, salt: Uint8Array): Promise<ArrayBuffer> {
-  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  return crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' }, key, 256);
-}
-
-export async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  return `${toHex(salt)}:${toHex(await derive(password, salt))}`;
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [saltHex, hashHex] = stored.split(':');
-  if (!saltHex || !hashHex) return false;
-  const derived = toHex(await derive(password, fromHex(saltHex)));
-  // constant-time compare
-  if (derived.length !== hashHex.length) return false;
-  let diff = 0;
-  for (let i = 0; i < derived.length; i++) diff |= derived.charCodeAt(i) ^ hashHex.charCodeAt(i);
-  return diff === 0;
-}
 
 export function b64url(bytes: Uint8Array): string {
   let s = '';
@@ -74,7 +44,12 @@ export async function signJwt(env: Env, payload: Omit<JwtPayload, 'exp'>, ttlSec
 export async function verifyJwt(env: Env, token: string): Promise<JwtPayload | null> {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
-  const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret(env)), b64urlDecode(parts[2]), enc.encode(`${parts[0]}.${parts[1]}`));
+  let ok = false;
+  try {
+    ok = await crypto.subtle.verify('HMAC', await hmacKey(secret(env)), b64urlDecode(parts[2]), enc.encode(`${parts[0]}.${parts[1]}`));
+  } catch {
+    return null; // malformed token
+  }
   if (!ok) return null;
   try {
     const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(parts[1]))) as JwtPayload;

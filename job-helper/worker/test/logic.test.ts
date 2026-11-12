@@ -6,6 +6,9 @@ import { matchApplication } from '../src/lib/match';
 import { buildMime } from '../src/lib/mime';
 import { parseAdzuna, parseGreenhouse, parseHimalayas, parseLever, parseRemoteOK, parseRemotive, parseRss, parseUsaJobs } from '../src/sources/parsers';
 import { markdownToDocxBase64 } from '../src/lib/docx';
+import { docxToText } from '../src/lib/unzip';
+import { allowedEmails, authUrl, ownerEmail } from '../src/lib/gmail';
+import type { Env } from '../src/env';
 
 const cfg = DEFAULT_PREFS.autopilot; // follow_up_days [7, 10], close_after_days 21
 const day = (n: number) => new Date(Date.UTC(2026, 0, 1 + n, 18));
@@ -164,5 +167,36 @@ describe('Word export', () => {
   it('produces a .docx (zip) file', async () => {
     const b64 = await markdownToDocxBase64('# Linda Example\nWhite Salmon, WA · l@x.com\n\n## Experience\n### Office Manager — Dental · 2014–2024\n- Ran **everything**', 'resume');
     expect(atob(b64).slice(0, 2)).toBe('PK');
+  });
+});
+
+describe('Google sign-in', () => {
+  const env = { ALLOWED_EMAILS: ' Mom@Gmail.com, kid@example.com ', GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 's' } as unknown as Env;
+  it('first allowed address is the job seeker', () => {
+    expect(allowedEmails(env)).toEqual(['mom@gmail.com', 'kid@example.com']);
+    expect(ownerEmail(env)).toBe('mom@gmail.com');
+  });
+  it('asks her for Gmail access, but helpers only for their name and email', () => {
+    const owner = new URL(authUrl(env, 'https://app.example', 'st', 'owner'));
+    expect(owner.searchParams.get('scope')).toContain('gmail.send');
+    expect(owner.searchParams.get('scope')).toContain('gmail.readonly');
+    expect(owner.searchParams.get('access_type')).toBe('offline');
+    expect(owner.searchParams.get('redirect_uri')).toBe('https://app.example/api/google/callback');
+    expect(owner.searchParams.get('login_hint')).toBe('mom@gmail.com');
+    const helper = new URL(authUrl(env, 'https://app.example', 'st', 'helper'));
+    expect(helper.searchParams.get('scope')).toBe('openid email profile');
+    expect(helper.searchParams.get('login_hint')).toBeNull();
+  });
+});
+
+describe('Word attachments', () => {
+  it('reads the text back out of a .docx', async () => {
+    const b64 = await markdownToDocxBase64('# Linda Example\nWhite Salmon, WA\n\n## Experience\n- Ran the front desk & billing', 'resume');
+    const text = await docxToText(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+    expect(text).toContain('Linda Example');
+    expect(text).toContain('Ran the front desk & billing');
+  });
+  it('rejects things that are not Word files', async () => {
+    await expect(docxToText(new TextEncoder().encode('not a zip'))).rejects.toThrow();
   });
 });

@@ -1,4 +1,9 @@
-const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8787';
+// Same origin in production (the Worker serves this app). Dev points at `wrangler dev` via .env.development.
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '');
+
+export function googleSignInUrl(mode: 'owner' | 'helper' = 'owner'): string {
+  return `${BASE}/api/auth/google?mode=${mode}`;
+}
 const KEY = 'nc_token';
 
 export function getToken(): string | null {
