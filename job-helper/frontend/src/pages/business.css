@@ -78,6 +78,7 @@
   .biz-table { font-size: .88rem; }
   .biz-table th, .biz-table td { padding: .45rem .35rem; }
   .biz-table th { font-size: .72rem; }
+  .biz-table .badge { white-space: normal; text-align: center; border-radius: 8px; }
   .card.biz-table-wrap { padding: .6rem .7rem; }
   .biz-big { font-size: 2.2rem; }
 }

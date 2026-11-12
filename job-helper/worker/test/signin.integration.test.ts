@@ -408,6 +408,11 @@ describe('Accounts, billing, and referrals', () => {
     expect(mom!.balance_micro).toBe(0);
   });
 
+  it('a comped account can’t lift the limit the business set for it', async () => {
+    const momToken = tokenFrom(await signIn('mom-full'));
+    expect((await call('/api/billing/cap', { method: 'PUT', token: momToken, body: JSON.stringify({ cap_usd: null }) })).status).toBe(403);
+  });
+
   it('a monthly spending limit pauses AI work', async () => {
     const token = tokenFrom(await signIn('friend'));
     await call('/api/billing/cap', { method: 'PUT', token, body: JSON.stringify({ cap_usd: 0.000001 }) });

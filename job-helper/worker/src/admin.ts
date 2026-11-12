@@ -28,7 +28,8 @@ export function adminRoutes(env: Env, user: UserRow): Route[] {
       }
       const users = await sum("SELECT COUNT(*) AS n FROM users WHERE status = 'active'");
       const waitlist = await sum("SELECT COUNT(*) AS n FROM users WHERE status = 'waitlist'");
-      const outstanding = await sum('SELECT COALESCE(SUM(balance_micro),0) AS n FROM users WHERE balance_micro > 0');
+      // Prepaid credit customers still hold (a liability): paying accounts only.
+      const outstanding = await sum("SELECT COALESCE(SUM(balance_micro),0) AS n FROM users WHERE balance_micro > 0 AND plan = 'paid' AND status != 'suspended'");
       const owed = await sum('SELECT COALESCE(SUM(amount_micro),0) AS n FROM referral_earnings WHERE payout_id IS NULL');
       return json({
         ...out,

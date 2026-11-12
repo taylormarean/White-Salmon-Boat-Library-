@@ -39,6 +39,8 @@ export function businessRoutes(env: Env, user: UserRow, owner: UserRow, origin: 
     }],
     ['PUT', '/api/billing/cap', async (req) => {
       if (!isOwner && !user.is_admin) return error('Only the account owner can change the spending limit.', 403);
+      // On a comped account the business pays, so only an admin may change its limit.
+      if (owner.plan === 'free' && !user.is_admin) return error('Your account is on the house — its monthly limit is set by Next Chapter.', 403);
       const b = await body<{ cap_usd?: number | null }>(req);
       const cap = b.cap_usd === null || b.cap_usd === undefined || Number(b.cap_usd) <= 0 ? null : Math.round(Number(b.cap_usd) * 1_000_000);
       await env.DB.prepare('UPDATE users SET monthly_cap_micro = ? WHERE id = ?').bind(cap, owner.id).run();
