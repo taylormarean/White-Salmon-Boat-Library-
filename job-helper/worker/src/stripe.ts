@@ -40,6 +40,8 @@ export async function creditCheckout(env: Env, user: UserRow, amountUsd: number,
       'line_items[0][price_data][product_data][name]': `Next Chapter credit — $${amountUsd}` }),
     ...form({ user_id: user.id, purpose: 'credit' }, 'metadata'),
     ...form({ user_id: user.id }, 'payment_intent_data[metadata]'),
+    // Card statements read "<YOUR ACCOUNT>* NEXTCHAPTER" so customers recognize the charge.
+    ...form({ 'payment_intent_data[statement_descriptor_suffix]': 'NEXTCHAPTER' }),
   ]);
   await env.DB.prepare("INSERT INTO credit_purchases (user_id, stripe_session_id, amount_micro, status) VALUES (?, ?, ?, 'pending')").bind(user.id, session.id, amountUsd * 1_000_000).run();
   return session.url;
@@ -47,19 +49,28 @@ export async function creditCheckout(env: Env, user: UserRow, amountUsd: number,
 
 // ---------------------------------------------------------------- webhook
 
+/**
+ * STRIPE_WEBHOOK_SECRET may hold several signing secrets, comma-separated: one endpoint for your
+ * account's events and one for connected (referral payout) accounts each have their own secret.
+ */
 async function verify(env: Env, payload: string, header: string): Promise<boolean> {
-  if (!env.STRIPE_WEBHOOK_SECRET) return false;
-  const parts = Object.fromEntries(header.split(',').map((kv) => kv.split('=') as [string, string]));
-  const t = parts.t;
-  const sig = parts.v1;
-  if (!t || !sig || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${t}.${payload}`)));
-  const expected = [...mac].map((b) => b.toString(16).padStart(2, '0')).join('');
-  if (expected.length !== sig.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
-  return diff === 0;
+  const secrets = (env.STRIPE_WEBHOOK_SECRET ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (!secrets.length) return false;
+  const t = header.split(',').find((kv) => kv.startsWith('t='))?.slice(2);
+  const sigs = header.split(',').filter((kv) => kv.startsWith('v1=')).map((kv) => kv.slice(3));
+  if (!t || !sigs.length || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
+  for (const secret of secrets) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${t}.${payload}`)));
+    const expected = [...mac].map((b) => b.toString(16).padStart(2, '0')).join('');
+    for (const sig of sigs) {
+      if (expected.length !== sig.length) continue;
+      let diff = 0;
+      for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+      if (diff === 0) return true;
+    }
+  }
+  return false;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

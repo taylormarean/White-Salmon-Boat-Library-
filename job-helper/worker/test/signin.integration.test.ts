@@ -119,7 +119,7 @@ beforeAll(async () => {
       ADMIN_EMAILS: 'kid@example.com',
       FREE_EMAILS: 'mom@gmail.com',
       MAX_USERS: '4',
-      STRIPE_WEBHOOK_SECRET: 'whsec_test',
+      STRIPE_WEBHOOK_SECRET: 'whsec_connect, whsec_test',
       GOOGLE_CLIENT_ID: 'cid.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'secret',
       JWT_SECRET: 'test-jwt-secret-0123456789abcdef',
