@@ -1,0 +1,46 @@
+name = "next-chapter"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Live at https://nextchapterjobhunter.com (the domain must be on this Cloudflare account — see README).
+# workers.dev stays on so `npm run setup` can deploy before DNS is ready; the app redirects to the domain.
+routes = [
+  { pattern = "nextchapterjobhunter.com", custom_domain = true },
+  { pattern = "www.nextchapterjobhunter.com", custom_domain = true },
+]
+
+# The web app (frontend/dist) is served from this same Worker, so there's one address for everything.
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[triggers]
+# Hourly: send approved messages (business hours only), check Gmail for replies,
+# schedule follow-ups. Once a day (her chosen hour): job search + morning summary.
+crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "next-chapter-db"
+database_id = "75fc236a-b79f-4c1f-9ade-c9d86168fbad"   # next-chapter-db (not a secret: only usable with your Cloudflare login)
+
+[vars]
+APP_URL = "https://nextchapterjobhunter.com"   # the public address: links in emails, Google sign-in, Stripe returns
+AI_MODEL = "claude-opus-5-5"
+TIMEZONE = "America/Los_Angeles"
+
+# Secrets — `npm run setup` asks for these and stores them with `wrangler secret put`:
+#   ANTHROPIC_API_KEY     your Claude API key
+#   GOOGLE_CLIENT_ID      Google sign-in + Gmail (see README step 2)
+#   GOOGLE_CLIENT_SECRET
+#   ADMIN_EMAILS          you (the business owner): admin dashboard
+#   FREE_EMAILS           comped accounts (your mom) — the business pays their AI cost
+#   STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET   credit purchases + referral payouts (Connect)
+#   RESEND_API_KEY / ALERT_FROM_EMAIL           alerts + weekly summaries (e.g. alerts@nextchapterjobhunter.com)
+#   TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM   optional daily text messages
+#   JWT_SECRET            generated automatically
+#   TOKEN_ENC_KEY         generated automatically
+#   ADZUNA_APP_ID / ADZUNA_APP_KEY / USAJOBS_API_KEY / USAJOBS_EMAIL   optional extra local job sources

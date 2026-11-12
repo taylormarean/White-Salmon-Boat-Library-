@@ -1,0 +1,112 @@
+/* Help center (hc-) and the 💬 Help chat (sc-). Uses the tokens from styles.css. */
+
+.hc-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---------------------------------------------------------------- help center */
+.hc { max-width: 860px; }
+.hc-public { margin: 0 auto; padding: 1.25rem clamp(1rem, 4vw, 2rem) 6rem; }
+.hc-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.hc-logo { font-weight: 700; font-size: 1.15rem; color: var(--ink); text-decoration: none; }
+
+.hc-search { position: relative; margin: 1rem 0 1.25rem; }
+.hc-search input { font-size: 1.1rem; padding: .85rem 1rem .85rem 2.8rem; border-radius: 12px; border-color: #cfc8ba; }
+.hc-search input:focus { outline: 3px solid var(--brand-soft); border-color: var(--brand); }
+.hc-search-icon { position: absolute; left: .95rem; top: 50%; transform: translateY(-50%); font-size: 1.05rem; pointer-events: none; }
+
+.hc-cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; align-items: start; }
+.hc-cat { margin: 0; }
+.hc-cat h2 { font-size: 1.1rem; }
+.hc-cat ul { list-style: none; padding: 0; margin: 0; }
+.hc-cat li { padding: .3rem 0; border-top: 1px solid var(--line); }
+.hc-cat li:first-child { border-top: 0; }
+.hc-cat a { text-decoration: none; font-weight: 500; display: block; padding: .15rem 0; }
+.hc-cat a:hover { text-decoration: underline; }
+
+.hc-results .mini, .hc-related .mini { margin-bottom: .6rem; }
+.hc-link strong { color: var(--brand); }
+.hc-related { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 1rem; }
+
+.hc-title { margin-top: .5rem; }
+.hc-lede { font-size: 1.1rem; color: var(--muted); margin-bottom: 1rem; }
+.hc-body { line-height: 1.65; }
+.hc-body h2 { font-size: 1.2rem; margin: 1.4rem 0 .4rem; }
+.hc-body h2:first-child { margin-top: 0; }
+.hc-body h3 { margin-top: 1rem; }
+.hc-body ul, .hc-body ol { padding-left: 1.4rem; margin: .3rem 0 .8rem; }
+.hc-body li { margin: .3rem 0; }
+.hc-body ol li::marker { font-weight: 700; color: var(--brand); }
+
+.hc-vote { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0 0 1rem; color: var(--muted); }
+.hc-stuck { margin-top: 1.75rem; background: var(--brand-soft); border-color: #c4dfd6; }
+.hc-stuck h2 { color: var(--brand); }
+
+/* ---------------------------------------------------------------- chat launcher */
+.sc-launch {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 35;
+  background: var(--brand); color: #fff; border: 0; border-radius: 999px;
+  padding: .75rem 1.15rem; font-size: 1rem; font-weight: 700; min-height: 48px;
+  box-shadow: 0 6px 20px rgba(31, 42, 46, .25);
+}
+.sc-launch:hover { filter: brightness(1.08); border: 0; }
+.sc-launch:focus-visible { outline: 3px solid #fff; box-shadow: 0 0 0 6px var(--brand); }
+
+/* ---------------------------------------------------------------- chat panel */
+.sc-panel {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 45;
+  width: min(410px, calc(100vw - 2rem)); height: min(620px, calc(100vh - 2.5rem));
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(31, 42, 46, .22); overflow: hidden;
+}
+.sc-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .55rem .6rem .55rem 1rem; background: var(--brand); color: #fff; }
+.sc-head h2 { font-size: 1.05rem; margin: 0; }
+.sc-head-actions { display: flex; gap: .25rem; align-items: center; }
+.sc-head button.ghost { color: #fff; min-height: 36px; font-size: .85rem; }
+.sc-close { background: transparent; color: #fff; border: 0; min-height: 40px; min-width: 40px; justify-content: center; font-size: 1.1rem; padding: 0; }
+.sc-close:hover, .sc-head button.ghost:hover { background: rgba(255, 255, 255, .15); border: 0; }
+.sc-close:focus-visible, .sc-head button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+.sc-list { flex: 1; overflow-y: auto; padding: .9rem; background: var(--bg); display: flex; flex-direction: column; gap: .7rem; overscroll-behavior: contain; }
+.sc-msg { display: flex; flex-direction: column; max-width: 92%; }
+.sc-msg.user { align-self: flex-end; align-items: flex-end; }
+.sc-msg.assistant { align-self: flex-start; }
+.sc-bubble { background: var(--card); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: .6rem .85rem; font-size: .95rem; line-height: 1.5; overflow-wrap: anywhere; }
+.sc-msg.user .sc-bubble { background: var(--brand); color: #fff; border-color: var(--brand); border-radius: 14px 14px 4px 14px; white-space: pre-wrap; }
+.sc-msg.note .sc-bubble { background: var(--warn-soft); border-color: #f0d49a; }
+.sc-bubble p { margin: .2rem 0 .5rem; }
+.sc-bubble p:last-child { margin-bottom: .1rem; }
+.sc-bubble ul, .sc-bubble ol { margin: .2rem 0 .5rem; padding-left: 1.25rem; }
+.sc-bubble li { margin: .2rem 0; }
+.sc-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.sc-chips .chip { text-align: left; font-weight: 600; font-size: .85rem; line-height: 1.3; min-height: 38px; }
+.sc-more { margin-top: .4rem; padding-top: .4rem; border-top: 1px solid var(--line); }
+.sc-more ul { margin: .1rem 0 0; padding-left: 1.1rem; font-size: .88rem; }
+
+.sc-rate { display: flex; gap: .25rem; margin-top: .25rem; }
+.sc-rate-btn { min-height: 34px; padding: .15rem .55rem; border-radius: 999px; font-size: .95rem; background: transparent; }
+.sc-rate-btn.on { background: var(--brand-soft); border-color: var(--brand); }
+
+.sc-typing { display: inline-flex; gap: .3rem; align-items: center; min-height: 2.1rem; }
+.sc-typing i { width: .5rem; height: .5rem; border-radius: 50%; background: var(--muted); opacity: .4; animation: sc-dot 1.2s infinite ease-in-out; }
+.sc-typing i:nth-of-type(2) { animation-delay: .2s; }
+.sc-typing i:nth-of-type(3) { animation-delay: .4s; }
+@keyframes sc-dot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .sc-typing i { animation: none; opacity: .7; } }
+
+.sc-form { display: flex; gap: .5rem; align-items: flex-end; padding: .6rem .7rem .3rem; border-top: 1px solid var(--line); background: var(--card); }
+.sc-form textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+.sc-form textarea { min-height: 2.9rem; max-height: 8rem; resize: none; font-size: 1rem; padding: .55rem .7rem; }
+.sc-form button { flex: none; }
+.sc-foot { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; padding: .15rem .8rem .6rem; background: var(--card); }
+
+/* Phones: sit above the bottom nav. */
+@media (max-width: 760px) {
+  /* --sc-nav is the measured height of the bottom nav (set by SupportChat; ~64–80px in the app). */
+  .sc-launch { right: .75rem; bottom: calc(var(--sc-nav, 64px) + .75rem); padding: .6rem 1rem; }
+  .sc-panel { left: .5rem; right: .5rem; width: auto; top: .5rem; height: auto; bottom: calc(var(--sc-nav, 64px) + .5rem); }
+  .hc-public { padding-top: 1rem; }
+}
+
+@media print {
+  .sc-launch, .sc-panel, .hc-stuck, .hc-vote, .hc-search { display: none !important; }
+}

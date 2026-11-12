@@ -1,0 +1,96 @@
+/* Practice (role-play chat + scorecard) and My Story pages. Prefixed pr- / st- so nothing leaks. */
+
+.pr-lede { font-size: 1.05rem; }
+.pr-private { display: inline-flex; gap: .4rem; align-items: center; background: var(--good-soft); color: var(--good); border-radius: 999px; padding: .2rem .8rem; font-size: .88rem; font-weight: 650; }
+
+/* scenario picker */
+.pr-scenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+.pr-scenario { display: flex; flex-direction: column; gap: .35rem; margin: 0; }
+.pr-scenario .pr-icon { font-size: 1.8rem; line-height: 1; }
+.pr-scenario h3 { font-size: 1.15rem; margin: .2rem 0 0; }
+.pr-scenario p { margin: 0 0 .5rem; color: var(--muted); flex: 1; }
+.pr-scenario button { align-self: flex-start; }
+.pr-job { max-width: 560px; }
+
+/* past sessions */
+.pr-past { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left; justify-content: flex-start; padding: .75rem 1rem; margin-bottom: .5rem; font-weight: 500; }
+.pr-past { flex-wrap: wrap; }
+.pr-past .grow { flex: 1 1 14rem; }
+.pr-past .grow strong { display: block; }
+.pr-past .pr-status { display: inline-flex; align-items: center; gap: .75rem; margin-left: auto; }
+.pr-past .pr-go { color: var(--brand); font-weight: 650; white-space: nowrap; }
+
+/* conversation */
+.pr-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.pr-chat { background: #fbfaf7; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; height: min(56vh, 560px); min-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: .75rem; }
+.pr-chat.done { height: auto; max-height: 70vh; }
+.pr-msg { display: flex; flex-direction: column; max-width: min(78%, 620px); }
+.pr-msg .pr-who { font-size: .78rem; font-weight: 700; color: var(--muted); margin: 0 .5rem .15rem; }
+.pr-msg .pr-bubble { padding: .7rem 1rem; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1.05rem; line-height: 1.45; }
+.pr-msg.them { align-self: flex-start; }
+.pr-msg.them .pr-bubble { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.pr-msg.me { align-self: flex-end; align-items: flex-end; }
+.pr-msg.me .pr-bubble { background: var(--brand); color: var(--brand-ink); border-bottom-right-radius: 6px; }
+.pr-msg.me.pause .pr-bubble { background: var(--warn-soft); color: var(--warn); font-style: italic; }
+.pr-hint { display: block; background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: .45rem .7rem; margin: .35rem 0; font-size: .95rem; font-style: normal; }
+.pr-hint::before { content: "💡 Coach: "; font-weight: 700; }
+
+.pr-typing { display: inline-flex; gap: .3rem; padding: .9rem 1rem; }
+.pr-typing i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted); opacity: .4; animation: pr-blink 1.2s infinite ease-in-out; }
+.pr-typing i:nth-child(2) { animation-delay: .2s; }
+.pr-typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes pr-blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: .9; transform: translateY(-3px); } }
+
+.pr-compose { margin-top: .75rem; }
+.pr-compose textarea { min-height: 5.5rem; font-size: 1.05rem; }
+.pr-compose .row { margin-top: .6rem; }
+.pr-mic.on { background: var(--bad); border-color: var(--bad); color: #fff; animation: pr-pulse 1.4s infinite; }
+@keyframes pr-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(163, 51, 43, .45); } 50% { box-shadow: 0 0 0 8px rgba(163, 51, 43, 0); } }
+.pr-toggle { margin: 0; font-weight: 500; align-items: center; }
+.pr-toggle input { margin-top: 0; }
+
+/* scorecard */
+.pr-stars { font-size: 2.2rem; letter-spacing: .15rem; line-height: 1; color: #e0a526; }
+.pr-stars .off { color: #d9d3c6; }
+.pr-score-top { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+.pr-score-top h2 { margin: 0; }
+.pr-list { margin: .25rem 0 0; padding-left: 1.3rem; }
+.pr-list li { margin: .3rem 0; }
+.pr-pair { border-top: 1px solid var(--line); padding: .7rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.pr-pair:first-of-type { border-top: 0; }
+.pr-pair .lbl { display: block; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .15rem; }
+.pr-pair .said { color: var(--muted); }
+.pr-pair .try { color: var(--good); font-weight: 600; }
+.pr-grid { margin-bottom: 1rem; }
+.pr-grid > .card { margin-bottom: 0; }
+.pr-drill { background: var(--brand-soft); border-radius: 12px; padding: .9rem 1.1rem; }
+
+/* My Story */
+.st-group { margin-top: 2rem; }
+.st-group > h2 { font-size: 1.35rem; }
+.st-block .st-title { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; flex-wrap: wrap; margin-bottom: .35rem; }
+.st-block .st-title .grow { flex: 1 1 15rem; }
+.st-block .st-title h3 { font-size: 1.15rem; margin: .35rem 0 0; }
+.st-block .st-text { white-space: pre-wrap; font-size: 1.05rem; }
+.st-count { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.st-count.over { color: var(--bad); }
+.st-item { border-top: 1px solid var(--line); padding: .65rem 0; }
+.st-item:first-child { border-top: 0; padding-top: .2rem; }
+.st-item h4 { margin: 0 0 .2rem; font-size: 1.02rem; }
+.st-item p { margin: .1rem 0 .3rem; }
+.st-edit-item { border: 1px solid var(--line); border-radius: 12px; padding: .5rem .9rem .9rem; margin-bottom: .75rem; background: #fbfaf7; }
+.st-edit-item label:first-child { margin-top: .35rem; }
+.st-role { border: 1px solid var(--line); border-radius: 12px; padding: .75rem 1rem; margin-bottom: .75rem; }
+.st-role h4 { flex: 1 1 12rem; }
+.st-role ul { margin: .3rem 0 0; padding-left: 1.3rem; }
+.st-role li { margin: .25rem 0; }
+.st-tip { background: var(--brand-soft); border-radius: 12px; padding: .9rem 1.1rem; margin-bottom: 1rem; }
+.st-empty { text-align: center; padding: 2rem 1.25rem; }
+.st-empty p { max-width: 560px; margin-inline: auto; font-size: 1.05rem; }
+
+@media (max-width: 760px) {
+  .pr-msg { max-width: 88%; }
+  .pr-chat { height: 44vh; padding: .75rem; }
+  .pr-pair { grid-template-columns: 1fr; gap: .25rem; }
+  .pr-compose .row > button { flex: 1 1 auto; justify-content: center; }
+}

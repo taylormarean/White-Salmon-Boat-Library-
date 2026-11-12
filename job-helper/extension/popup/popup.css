@@ -1,0 +1,5 @@
+body { width: 390px; min-height: 200px; }
+#report ul { max-height: 160px; overflow: auto; }
+#again { margin-top: 4px; }
+#loading { gap: 10px; }
+#working .row { gap: 10px; }
