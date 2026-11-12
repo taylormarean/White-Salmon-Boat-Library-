@@ -7,10 +7,10 @@ import SettingsExtras from './SettingsExtras';
 interface Prefs {
   name: string; email: string; phone: string; home_location: string; linkedin_url: string; website_url: string; attachment_format: 'pdf' | 'docx' | 'both'; radius_miles: number; target_roles: string[]; exclude_keywords: string[];
   min_salary: number | null; want_remote: boolean; want_local: boolean; wishes: string; industry_focus: string; exclude_companies: string[]; min_fit_to_recommend: number;
-  sources: { remotive: boolean; remoteok: boolean; himalayas: boolean; adzuna: boolean; usajobs: boolean; web_scout: boolean; greenhouse_boards: string[]; lever_sites: string[]; rss_feeds: string[] };
+  sources: { remotive: boolean; remoteok: boolean; himalayas: boolean; jobicy: boolean; working_nomads: boolean; weworkremotely: boolean; company_boards: boolean; google_jobs: boolean; jooble: boolean; adzuna: boolean; usajobs: boolean; web_scout: boolean; greenhouse_boards: string[]; lever_sites: string[]; ashby_boards?: string[]; rss_feeds: string[] };
   autopilot: { daily_search: boolean; daily_hour: number; max_scores_per_run: number; auto_prepare_threshold: number; auto_send_applications: boolean; auto_send_follow_ups: boolean; follow_up_days: number[]; close_after_days: number; interview_check_in_days: number; daily_digest: boolean };
 }
-interface Status { ai: boolean; mock_ai: boolean; model: string; gmail: { configured: boolean; connected: boolean; email: string | null }; sources: { adzuna: boolean; usajobs: boolean }; last_search: { at: string; report: { source: string; found: number; error?: string }[]; added: number; screenedOut: number; scored: number; prepared: number } | null }
+interface Status { ai: boolean; mock_ai: boolean; model: string; gmail: { configured: boolean; connected: boolean; email: string | null }; sources: { adzuna: boolean; usajobs: boolean; jooble?: boolean; google_jobs?: boolean }; last_search: { at: string; report: { source: string; found: number; error?: string }[]; added: number; screenedOut: number; scored: number; prepared: number } | null }
 
 const lines = (a: string[]) => a.join('\n');
 const unlines = (s: string) => s.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
@@ -156,20 +156,29 @@ export default function Settings({ query, me, reloadMe }: { query: URLSearchPara
             <label className="check"><input type="checkbox" checked={p.sources.web_scout} onChange={(e) => src({ web_scout: e.target.checked })} /> <span>AI web search <span className="hint">city & county pages, schools, hospitals, local papers</span></span></label>
             <label className="check"><input type="checkbox" checked={p.sources.adzuna} onChange={(e) => src({ adzuna: e.target.checked })} disabled={!s.sources.adzuna} /> <span>Adzuna {!s.sources.adzuna && <span className="hint">needs an API key on the server</span>}</span></label>
             <label className="check"><input type="checkbox" checked={p.sources.usajobs} onChange={(e) => src({ usajobs: e.target.checked })} disabled={!s.sources.usajobs} /> <span>USAJobs (government) {!s.sources.usajobs && <span className="hint">needs an API key on the server</span>}</span></label>
+            <label className="check"><input type="checkbox" checked={p.sources.jooble !== false} onChange={(e) => src({ jooble: e.target.checked })} disabled={!s.sources.jooble} /> <span>Jooble <span className="hint">{s.sources.jooble ? 'listings gathered from many job sites' : 'needs an API key on the server'}</span></span></label>
           </div>
           <div>
             <h3>Work from home</h3>
             <label className="check"><input type="checkbox" checked={p.sources.remotive} onChange={(e) => src({ remotive: e.target.checked })} /> Remotive</label>
             <label className="check"><input type="checkbox" checked={p.sources.remoteok} onChange={(e) => src({ remoteok: e.target.checked })} /> RemoteOK</label>
             <label className="check"><input type="checkbox" checked={p.sources.himalayas} onChange={(e) => src({ himalayas: e.target.checked })} /> Himalayas</label>
+            <label className="check"><input type="checkbox" checked={p.sources.jobicy !== false} onChange={(e) => src({ jobicy: e.target.checked })} /> Jobicy</label>
+            <label className="check"><input type="checkbox" checked={p.sources.weworkremotely !== false} onChange={(e) => src({ weworkremotely: e.target.checked })} /> We Work Remotely</label>
+            <label className="check"><input type="checkbox" checked={p.sources.working_nomads !== false} onChange={(e) => src({ working_nomads: e.target.checked })} /> Working Nomads</label>
           </div>
         </div>
+        <h3 style={{ marginTop: '.75rem' }}>Remote and nearby</h3>
+        <label className="check"><input type="checkbox" checked={p.sources.company_boards !== false} onChange={(e) => src({ company_boards: e.target.checked })} /> <span>Software companies hiring sales <span className="hint">career pages of 60+ companies like Datadog, Stripe, Snowflake and Gong — for sales and customer-success searches</span></span></label>
+        <label className="check"><input type="checkbox" checked={p.sources.google_jobs !== false} onChange={(e) => src({ google_jobs: e.target.checked })} disabled={!s.sources.google_jobs} /> <span>Google Jobs <span className="hint">{s.sources.google_jobs ? 'includes listings from LinkedIn, Indeed, ZipRecruiter, Monster and Glassdoor · a few cents of credit per daily search' : 'needs a SerpApi key on the server'}</span></span></label>
         <details style={{ marginTop: '.75rem' }}>
           <summary>Specific employers and job feeds (advanced)</summary>
           <label>Greenhouse company boards <span className="hint">the part after boards.greenhouse.io/ — one per line</span></label>
           <textarea rows={3} value={lines(p.sources.greenhouse_boards)} onChange={(e) => src({ greenhouse_boards: unlines(e.target.value) })} />
           <label>Lever company sites <span className="hint">the part after jobs.lever.co/ — one per line</span></label>
           <textarea rows={3} value={lines(p.sources.lever_sites)} onChange={(e) => src({ lever_sites: unlines(e.target.value) })} />
+          <label>Ashby company boards <span className="hint">the part after jobs.ashbyhq.com/ — one per line</span></label>
+          <textarea rows={3} value={lines(p.sources.ashby_boards ?? [])} onChange={(e) => src({ ashby_boards: unlines(e.target.value) })} />
           <label>RSS job feeds <span className="hint">full links, one per line</span></label>
           <textarea rows={3} value={lines(p.sources.rss_feeds)} onChange={(e) => src({ rss_feeds: unlines(e.target.value) })} />
           <label>Most fit checks per day <span className="hint">keeps AI costs predictable</span></label>

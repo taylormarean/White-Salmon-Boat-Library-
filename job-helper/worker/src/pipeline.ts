@@ -12,7 +12,7 @@ import {
   LEARN_SCHEMA, MESSAGE_SCHEMA, PDF_TEXT_INSTRUCTIONS, REPLY_INSTRUCTIONS, SCORE_INSTRUCTIONS, SCORE_SCHEMA, scoreMock, scoreUser,
   type ClassifyResult, type DraftResult, type LearnResult, type MessageResult, type ScoreResult, type VoiceExample,
 } from './lib/prompts';
-import { cleanEmailBody, dedupeKey, extractApplicationEmail, prefilter, remoteLocationOk, truncate } from './lib/text';
+import { abroadOnly, cleanEmailBody, dedupeKey, extractApplicationEmail, prefilter, remoteLocationOk, truncate } from './lib/text';
 import { nextStep, isBusinessHours, localDate, localHour } from './lib/followup';
 import { matchApplication, senderAddress } from './lib/match';
 import { connectedEmail, getAttachment, getMessage, gmailStatus, listMessages, sendEmail } from './lib/gmail';
@@ -26,9 +26,10 @@ import { markdownToPdfBase64, PDF_MIME, pdfFilename } from './lib/pdf';
 import { suggestTimes } from './lib/calendar';
 import { checkStillOpen, researchCompany } from './career';
 import type { RawJob } from './sources/types';
+import type { Prefs } from './lib/prefs';
 
 const ACTIVE = ['submitted', 'following_up', 'interviewing', 'offer'];
-const KEYWORD_SEARCHED = new Set(['remotive', 'adzuna', 'usajobs', 'web_scout', 'manual']);
+const KEYWORD_SEARCHED = new Set(['adzuna', 'usajobs', 'web_scout', 'manual', 'jooble', 'google_jobs']);
 
 async function recentExamples(env: Env): Promise<VoiceExample[]> {
   const { results } = await env.DB.prepare('SELECT kind, before_text, after_text FROM voice_examples WHERE user_id = ? ORDER BY id DESC LIMIT 6').bind(U(env)).all<VoiceExample>();
@@ -96,6 +97,7 @@ export async function ingestJobs(env: Env, raw: RawJob[]): Promise<{ added: numb
   let added = 0;
   let screenedOut = 0;
   const stmts: D1PreparedStatement[] = [];
+  const screened: boolean[] = [];
   const seen = new Set<string>();
   for (const j of raw) {
     if (!j.title || !j.company) continue;
@@ -106,7 +108,8 @@ export async function ingestJobs(env: Env, raw: RawJob[]): Promise<{ added: numb
     // Sources that were already searched by her target roles skip the keyword screen.
     let reason = prefilter({ ...j }, prefs, { skipRoleCheck: KEYWORD_SEARCHED.has(j.source) });
     if (!reason && j.work_mode === 'remote' && !remoteLocationOk(j.location_restriction)) reason = `remote, but only for ${j.location_restriction}`;
-    if (reason) screenedOut++;
+    if (!reason && abroadOnly(`${j.title} | ${j.location ?? ''}`)) reason = 'outside the U.S.';
+    screened.push(!!reason);
     stmts.push(env.DB.prepare(
       `INSERT OR IGNORE INTO jobs (user_id, source, external_id, dedupe_key, url, apply_url, title, company, location, work_mode, salary, description, posted_at, application_email, status, fit_summary)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -118,7 +121,12 @@ export async function ingestJobs(env: Env, raw: RawJob[]): Promise<{ added: numb
   }
   for (let i = 0; i < stmts.length; i += 50) {
     const res = await env.DB.batch(stmts.slice(i, i + 50));
-    added += res.reduce((n, r) => n + (r.meta.changes ?? 0), 0);
+    // Count only postings that are new to her (already-seen ones are ignored by the insert).
+    res.forEach((r, k) => {
+      if (!r.meta.changes) return;
+      if (screened[i + k]) screenedOut++;
+      else added++;
+    });
   }
   return { added, screenedOut };
 }
@@ -153,10 +161,25 @@ export async function scoreJob(env: Env, jobId: number): Promise<ScoreResult> {
   return { ...r, fit_score: score };
 }
 
+/**
+ * With hundreds of new postings and a daily limit on fit checks, check the likeliest ones first: the
+ * title is one of her target roles, then in-person/hybrid nearby (fewer of those exist), then newest.
+ */
+export function rankForScoring<T extends { title: string; work_mode: string; at: string }>(jobs: T[], prefs: Prefs): T[] {
+  const targets = prefs.target_roles.map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const score = (j: T) => {
+    const t = j.title.toLowerCase();
+    const title = targets.some((r) => t.includes(r)) ? 2 : targets.some((r) => r.split(/\s+/).filter((w) => w.length > 2).every((w) => t.includes(w))) ? 1 : 0;
+    return title * 10 + (j.work_mode !== 'remote' ? 3 : 0);
+  };
+  return [...jobs].sort((a, b) => score(b) - score(a) || (b.at ?? '').localeCompare(a.at ?? ''));
+}
+
 export async function scorePending(env: Env, max: number): Promise<number> {
-  const { results } = await env.DB.prepare(
-    "SELECT id FROM jobs WHERE user_id = ? AND status = 'new' AND fit_score IS NULL ORDER BY COALESCE(posted_at, found_at) DESC LIMIT ?",
-  ).bind(U(env), max).all<{ id: number }>();
+  const { results: pool } = await env.DB.prepare(
+    "SELECT id, title, work_mode, COALESCE(posted_at, found_at) AS at FROM jobs WHERE user_id = ? AND status = 'new' AND fit_score IS NULL ORDER BY COALESCE(posted_at, found_at) DESC LIMIT 400",
+  ).bind(U(env)).all<{ id: number; title: string; work_mode: string; at: string }>();
+  const results = rankForScoring(pool, await getPrefs(env)).slice(0, max);
   let n = 0;
   await limit(results, 4, async ({ id }) => {
     try {

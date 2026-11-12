@@ -231,6 +231,20 @@ async function main() {
     if (ukey && uemail) Object.assign(secrets, { USAJOBS_API_KEY: ukey, USAJOBS_EMAIL: uemail });
   }
 
+  if (!has('JOOBLE_API_KEY') && await yes('Add Jooble (free — local listings gathered from many job sites)?', false)) {
+    console.log(dim('   Request a key at https://jooble.org/api/about (it arrives by email).'));
+    const jk = await ask('Jooble API key', { hidden: true });
+    if (jk) secrets.JOOBLE_API_KEY = jk;
+  }
+
+  if (!has('SERPAPI_KEY') && await yes('Add Google Jobs (covers LinkedIn, Indeed, ZipRecruiter, Monster, Glassdoor — paid)?', false)) {
+    console.log(dim('   Sign up at https://serpapi.com (from $75/month for 5,000 searches; 100 free searches to try it).'));
+    console.log(dim('   Each customer uses about 4 searches a day; that cost is charged to their credit like AI use.'));
+    console.log(dim('   Copy "Your Private API Key" from https://serpapi.com/manage-api-key'));
+    const sk = await ask('SerpApi key', { hidden: true });
+    if (sk) secrets.SERPAPI_KEY = sk;
+  }
+
   for (const k of Object.keys(secrets)) if (!secrets[k]) delete secrets[k];
   if (Object.keys(secrets).length) {
     // Piped through stdin — the values never touch the disk.

@@ -273,7 +273,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       return json({
         ai: aiConfigured(env), mock_ai: env.MOCK_AI === '1', model: env.AI_MODEL || 'claude-opus-5-5',
         gmail: await gmailStatus(env),
-        sources: { adzuna: !!env.ADZUNA_APP_ID && !!env.ADZUNA_APP_KEY, usajobs: !!env.USAJOBS_API_KEY && !!env.USAJOBS_EMAIL },
+        sources: { adzuna: !!env.ADZUNA_APP_ID && !!env.ADZUNA_APP_KEY, usajobs: !!env.USAJOBS_API_KEY && !!env.USAJOBS_EMAIL, jooble: !!env.JOOBLE_API_KEY, google_jobs: !!env.SERPAPI_KEY },
         documents: docs?.n ?? 0, voice_learned_at: voice.learned_at, has_career_record: !!voice.career_record,
         last_search: await getSetting(env, 'last_search'),
       });

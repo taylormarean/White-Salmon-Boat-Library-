@@ -65,12 +65,52 @@ export function isFreeMail(domain: string | null): boolean {
   return !!domain && FREE_MAIL.has(domain);
 }
 
+const US_PLACE = /(anywhere|worldwide|\bglobal\b|\busa\b|u\.s\.|united states|\bus\b|north america|\bamericas\b|\bamer\b)/i;
+const ABROAD = /(emea|europe|\buk\b|u\.k\.|united kingdom|england|london|ireland|dublin|germany|berlin|munich|dach|france|paris|spain|madrid|barcelona|portugal|lisbon|italy|netherlands|amsterdam|belgium|switzerland|zurich|geneva|lausanne|basel|nordics|sweden|stockholm|denmark|norway|finland|poland|warsaw|india|bangalore|bengaluru|hyderabad|pune|mumbai|apac|\bapj\b|asia|singapore|japan|tokyo|korea|seoul|china|hong kong|taiwan|philippines|manila|australia|sydney|melbourne|\banz\b|new zealand|latam|latin america|mexico|brazil|s[aã]o paulo|argentina|colombia|chile|canada|toronto|vancouver|montreal|quebec|ontario|british columbia|alberta|calgary|israel|tel aviv|dubai|\buae\b|saudi|riyadh|middle east|africa|nigeria|lagos|kenya|nairobi|egypt|cairo|malaysia|kuala lumpur|indonesia|jakarta|vietnam|thailand|bangkok|pakistan|turkey|istanbul|romania|bucharest|czech|prague|hungary|budapest|greece|athens|austria|vienna|estonia|ukraine|kyiv|serbia|croatia|bulgaria|lithuania|latvia|peru|uruguay|costa rica)/i;
+
 /** Remote postings that are restricted to other countries are useless to her. */
 export function remoteLocationOk(restriction: string | null | undefined): boolean {
   const r = (restriction ?? '').trim();
   if (!r) return true;
-  if (/(anywhere|worldwide|global|usa|u\.s\.|united states|\bus\b|north america|americas|remote)/i.test(r)) return true;
-  return false;
+  if (US_PLACE.test(r)) return true;
+  if (ABROAD.test(r)) return false;
+  return /remote/i.test(r);
+}
+
+const STATES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware',
+  DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon',
+  PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah',
+  VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+};
+
+const STATE_CODE = new RegExp(`(^|[\\s,(/-])(${['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].join('|')})($|[\\s,)/;-])`);
+
+/** Clearly outside the U.S. (mentions another country or region and nothing American). Checks title + location. */
+export function abroadOnly(text: string | null | undefined): boolean {
+  const t = text ?? '';
+  if (!ABROAD.test(t) || US_PLACE.test(t) || STATE_CODE.test(t)) return false;
+  return !Object.values(STATES).some((n) => new RegExp(`\\b${n}\\b`, 'i').test(t));
+}
+
+/**
+ * Rough "is this in-person job near her?" for sources that can't search by distance (company career
+ * pages). Matches her city, or her state by name or abbreviation. The AI fit check judges the commute.
+ */
+export function nearHome(location: string | null | undefined, home: string): boolean {
+  const loc = (location ?? '').trim();
+  const [city, region] = home.split(',').map((x) => x.trim());
+  if (!loc || !city) return false;
+  if (loc.toLowerCase().includes(city.toLowerCase())) return true;
+  const abbr = (region ?? '').toUpperCase();
+  const name = STATES[abbr] ?? Object.values(STATES).find((n) => n.toLowerCase() === (region ?? '').toLowerCase());
+  const code = STATES[abbr] ? abbr : Object.keys(STATES).find((k) => STATES[k] === name);
+  if (name && new RegExp(`\\b${name}\\b(?!,?\\s*D\\.?C\\b)`, 'i').test(loc)) return true;
+  // "Seattle, WA" / "Remote - WA" — the abbreviation must stand alone and be upper case.
+  return !!code && new RegExp(`(^|[\\s,(/-])${code}($|[\\s,)/;-])`).test(loc);
 }
 
 /** Best-effort yearly salary from free text like "$22–$26/hr" or "$55,000 - $65,000". Returns the top of the range. */

@@ -104,7 +104,15 @@ export async function guardSpend(env: Env, opts: { free?: boolean } = {}): Promi
 
 /** Record one Claude response: usage event, balance debit, referral earning. */
 export async function recordUsage(env: Env, purpose: string, model: string, usage: UsageLike, opts: { free?: boolean } = {}): Promise<Metered & { chargeMicro: number }> {
-  const m = meter(model, usage);
+  return bill(env, purpose, meter(model, usage), opts);
+}
+
+/** A paid non-AI call (e.g. a Google for Jobs search), billed like AI usage: cost × multiplier, referral share. */
+export async function recordCost(env: Env, purpose: string, service: string, costMicro: number, searches = 1): Promise<Metered & { chargeMicro: number }> {
+  return bill(env, purpose, { model: service, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, searches, costMicro: Math.ceil(costMicro) }, {});
+}
+
+async function bill(env: Env, purpose: string, m: Metered, opts: { free?: boolean }): Promise<Metered & { chargeMicro: number }> {
   if (env.uid == null) return { ...m, chargeMicro: 0 };
   const user = await getUser(env, U(env));
   const charge = user && user.plan === 'paid' && !opts.free ? chargeFor(m.costMicro, env) : 0;

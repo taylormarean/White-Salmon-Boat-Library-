@@ -14,6 +14,7 @@ export async function migrate(env: Env): Promise<void> {
     await env.DB.batch([
       env.DB.prepare("CREATE TABLE IF NOT EXISTS support_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL, helpful INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')))"),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_support_user ON support_messages(user_id, created_at)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS board_cache (board TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, jobs TEXT NOT NULL)'),
     ]);
   }
   checked = true;

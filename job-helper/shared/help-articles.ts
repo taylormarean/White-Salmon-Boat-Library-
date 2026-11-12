@@ -152,13 +152,17 @@ Getting test emails and not sure why? See [Why are emails going to my own inbox?
     title: 'How jobs are found',
     category: 'Finding jobs',
     summary: 'Every morning Next Chapter searches job boards and the web, screens out what you don’t want, and fit-checks the rest.',
-    keywords: ['find jobs', 'search', 'job boards', 'sources', 'where', 'remote', 'local', 'daily search', 'look for jobs', 'greenhouse', 'lever', 'rss', 'web search', 'every morning'],
+    keywords: ['find jobs', 'search', 'job boards', 'sources', 'where', 'remote', 'local', 'daily search', 'look for jobs', 'greenhouse', 'lever', 'ashby', 'rss', 'web search', 'every morning', 'indeed', 'linkedin', 'ziprecruiter', 'monster', 'glassdoor', 'google jobs', 'jooble', 'big job sites', 'company career pages'],
     body: `Every morning, Next Chapter searches for jobs that match what you told it.
 
 ## Where it looks
-- **Work-from-home job boards**: Remotive, RemoteOK and Himalayas.
-- **Local jobs**: an AI web search of city and county pages, schools, hospitals and local papers, plus Adzuna and USAJobs where they’re available.
-- **Specific employers** (optional): company careers pages on Greenhouse or Lever, and job feeds (RSS). Add them in [Settings](#/settings) under **Where to look**, then **Specific employers and job feeds (advanced)**.
+- **Work-from-home job boards**: Remotive, RemoteOK, Himalayas, Jobicy, We Work Remotely and Working Nomads.
+- **Software companies hiring sales**: for sales and customer-success searches, the careers pages of 60+ companies such as Datadog, Stripe, Snowflake, Samsara and Gong. It keeps their U.S. remote openings and any near you.
+- **Local jobs**: an AI web search of city and county pages, schools, hospitals and local papers, plus Adzuna, Jooble and USAJobs where they’re available.
+- **Google Jobs** (where available): listings Google gathers from LinkedIn, Indeed, ZipRecruiter, Monster, Glassdoor and employers’ own sites. Each daily search uses a few cents of credit.
+- **Specific employers** (optional): company careers pages on Greenhouse, Lever or Ashby, and job feeds (RSS). Add them in [Settings](#/settings) under **Where to look**, then **Specific employers and job feeds (advanced)**.
+
+**Found a job somewhere else, like Indeed or LinkedIn?** Add it yourself; see [Adding a job you found yourself](#/help/add-a-job-yourself). The big job sites don’t let apps search them directly.
 
 It starts out looking for tech sales roles (like sales development, account executive, account manager and customer success). You can point it at any kind of work in Settings under **Kinds of jobs** and **What to focus on**.
 

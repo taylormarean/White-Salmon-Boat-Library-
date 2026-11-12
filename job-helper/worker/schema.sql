@@ -303,3 +303,6 @@ CREATE INDEX IF NOT EXISTS idx_alerts_open ON alerts(user_id, resolved);
 -- Support assistant: every question and answer, and whether the answer helped (null = not rated).
 CREATE TABLE IF NOT EXISTS support_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL, helpful INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_support_user ON support_messages(user_id, created_at);
+
+-- Company career pages, fetched at most about once a day and shared by every account (go-to-market roles only).
+CREATE TABLE IF NOT EXISTS board_cache (board TEXT PRIMARY KEY, fetched_at TEXT NOT NULL, jobs TEXT NOT NULL);

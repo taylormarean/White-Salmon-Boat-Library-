@@ -19,10 +19,13 @@ Next Chapter does the busywork of a job search in the job seeker's own voice. Th
 
 **Finding jobs**
 - **Daily search.** Sources:
-  - remote boards: Remotive, RemoteOK, Himalayas
-  - local: Adzuna, USAJobs
-  - company career pages on Greenhouse and Lever, plus RSS feeds
+  - remote boards: Remotive, RemoteOK, Himalayas, Jobicy, We Work Remotely, Working Nomads
+  - for sales searches, the career pages of 60+ software companies that hire sales reps ([companies.ts](worker/src/sources/companies.ts)). They're fetched about once a day and shared by every account.
+  - local: Adzuna, Jooble, USAJobs (free keys)
+  - **Google Jobs via SerpApi** (optional, paid): listings Google gathers from LinkedIn, Indeed, ZipRecruiter, Monster and Glassdoor. Each search is charged to the customer's credit like AI use.
+  - company career pages on Greenhouse, Lever and Ashby, plus RSS feeds
   - a Claude web-search scout for small-town listings
+  - Indeed, LinkedIn, ZipRecruiter and Monster have no public search API and forbid scraping, so they're reached through Google Jobs, or the user adds a job they found there.
 - **Tech sales by default.** It starts with SDR/BDR, AE, Account Manager, Customer Success and Inside Sales roles at software/SaaS companies. Any field works.
 - **Fit scoring.** Each job gets a 0–100 score with reasons, gaps and scam flags. Jobs below the user's bar are screened out.
 - **Learning their taste.** **Every recommendation needs their 👍 or 👎**, from the app or one tap in the morning email. Votes and reasons feed every later fit check, and "don't want this company" blocks that employer.
@@ -130,7 +133,7 @@ npm run setup
 3. **Keys.** The Claude key is typed hidden and stored as an encrypted secret. It then asks for:
    - your email (admin) and your mom's (free account)
    - the Google sign-in keys, printing every console step, including the homepage, privacy, terms and redirect URLs
-   - Stripe (with webhook and Connect steps), Resend, Twilio and the job APIs, all optional
+   - Stripe (with webhook and Connect steps), Resend, Twilio and the job APIs (Adzuna, USAJobs, Jooble, SerpApi), all optional
 
 ## Local development
 

@@ -39,6 +39,8 @@ export interface Env {
   ADZUNA_APP_KEY?: string;
   USAJOBS_API_KEY?: string;
   USAJOBS_EMAIL?: string;
+  JOOBLE_API_KEY?: string;    // free key from jooble.org/api/about — local listings from many job sites
+  SERPAPI_KEY?: string;       // serpapi.com — Google for Jobs (LinkedIn, Indeed, ZipRecruiter, Monster…); paid per search
   MOCK_AI?: string;               // dev only: "1" = canned AI answers
   DEV_LOGIN?: string;             // dev only: "1" = sign in by email without Google
 }

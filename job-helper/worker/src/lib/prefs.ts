@@ -22,11 +22,18 @@ export interface Prefs {
     remotive: boolean;
     remoteok: boolean;
     himalayas: boolean;
+    jobicy: boolean;
+    working_nomads: boolean;
+    weworkremotely: boolean;
+    company_boards: boolean;   // built-in list of software companies hiring sales (tech-sales searches)
+    google_jobs: boolean;      // Google for Jobs via SerpApi: LinkedIn, Indeed, ZipRecruiter, Monster, Glassdoor…
+    jooble: boolean;
     adzuna: boolean;
     usajobs: boolean;
     web_scout: boolean;        // Claude web search for local listings (small-town boards, employer sites)
     greenhouse_boards: string[]; // company board tokens, e.g. "providencehealth"
     lever_sites: string[];
+    ashby_boards: string[];
     rss_feeds: string[];
   };
   autopilot: {
@@ -73,11 +80,18 @@ export const DEFAULT_PREFS: Prefs = {
     remotive: true,
     remoteok: true,
     himalayas: true,
+    jobicy: true,
+    working_nomads: true,
+    weworkremotely: true,
+    company_boards: true,
+    google_jobs: true,
+    jooble: true,
     adzuna: true,
     usajobs: true,
     web_scout: true,
     greenhouse_boards: [],
     lever_sites: [],
+    ashby_boards: [],
     rss_feeds: [],
   },
   autopilot: {
