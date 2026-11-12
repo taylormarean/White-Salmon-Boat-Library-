@@ -11,6 +11,7 @@ export interface MailInput {
   to: string;
   subject: string;
   text: string;
+  html?: string;       // optional rich version (plain text is always included too)
   inReplyTo?: string | null; // Message-ID we're replying to (keeps the employer's thread together)
   attachments?: Attachment[];
 }
@@ -45,7 +46,16 @@ export function buildMime(m: MailInput, boundary = `nc_${crypto.randomUUID().rep
   if (m.inReplyTo) {
     headers.push(`In-Reply-To: ${stripCrlf(m.inReplyTo)}`, `References: ${stripCrlf(m.inReplyTo)}`);
   }
-  const textPart = ['Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(utf8ToBase64(m.text))].join('\r\n');
+  const plainPart = ['Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(utf8ToBase64(m.text))].join('\r\n');
+  const alt = `${boundary}_alt`;
+  const textPart = m.html
+    ? [
+      `Content-Type: multipart/alternative; boundary="${alt}"`, '',
+      `--${alt}\r\n${plainPart}`,
+      `--${alt}\r\n${['Content-Type: text/html; charset="UTF-8"', 'Content-Transfer-Encoding: base64', '', wrap76(utf8ToBase64(m.html))].join('\r\n')}`,
+      `--${alt}--`,
+    ].join('\r\n')
+    : plainPart;
 
   if (!m.attachments?.length) {
     return [...headers, textPart].join('\r\n');

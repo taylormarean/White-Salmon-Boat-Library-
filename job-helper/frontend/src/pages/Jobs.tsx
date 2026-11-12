@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { Btn, ErrorBox, Fit, Loading, meta, MODE, useLoad, when } from '../ui';
+import { Btn, ErrorBox, Fit, Loading, meta, MODE, useLoad, VoteButtons, when } from '../ui';
 
-interface Job { id: number; title: string; company: string; location: string; work_mode: string; salary: string; fit_score: number | null; fit_label: string | null; fit_summary: string | null; status: string; found_at: string; source: string; application_id: number | null; url: string }
+interface Job { vote: number | null; id: number; title: string; company: string; location: string; work_mode: string; salary: string; fit_score: number | null; fit_label: string | null; fit_summary: string | null; status: string; found_at: string; source: string; application_id: number | null; url: string }
 
 const VIEWS = [
-  { key: 'new', label: 'New' },
-  { key: 'shortlisted', label: 'Saved' },
+  { key: 'new', label: 'Needs your vote' },
+  { key: 'shortlisted', label: '👍 Liked' },
   { key: 'applying', label: 'Applying' },
-  { key: 'dismissed', label: 'Not interested' },
+  { key: 'dismissed', label: '👎 Not for me' },
   { key: 'filtered', label: 'Screened out' },
 ];
 
@@ -26,7 +26,7 @@ export default function Jobs() {
       <div className="row between">
         <div>
           <h1>Jobs</h1>
-          <p className="muted">Found automatically every morning and checked against your experience.</p>
+          <p className="muted">Found every morning and checked against your experience and everything you’ve told me. Give each new one a 👍 or 👎 — I’ll write the application for the ones you like, and find more like them.</p>
         </div>
         <button onClick={() => setAdding(!adding)}>➕ Add a job I found</button>
       </div>
@@ -58,17 +58,14 @@ export default function Jobs() {
             <a href={`#/jobs/${j.id}`} style={{ color: 'inherit', textDecoration: 'none' }}><h3>{j.title}</h3></a>
             <div className="muted small">{meta(j.company, MODE[j.work_mode], j.location, j.salary, `found ${when(j.found_at)}`)}</div>
             {j.fit_summary && <p className="small">{j.fit_summary}</p>}
+            {(j.status === 'new' || j.status === 'shortlisted' || j.status === 'dismissed') && (
+              <div style={{ marginBottom: '.6rem' }}><VoteButtons jobId={j.id} vote={j.vote} onVoted={list.reload} /></div>
+            )}
             <div className="row">
               <a className="btn primary" href={`#/jobs/${j.id}`}>See details</a>
               {j.application_id ? <a className="btn" href={`#/applications/${j.application_id}`}>Open application</a> : null}
-              {j.status === 'new' && (
-                <>
-                  <Btn onClick={async () => { await api(`/jobs/${j.id}`, { method: 'PATCH', body: { status: 'shortlisted' } }); list.reload(); }} done="Saved for later">☆ Save</Btn>
-                  <Btn className="ghost" onClick={async () => { await api(`/jobs/${j.id}`, { method: 'PATCH', body: { status: 'dismissed' } }); list.reload(); }}>Not interested</Btn>
-                </>
-              )}
-              {(j.status === 'dismissed' || j.status === 'filtered') && (
-                <Btn className="ghost" onClick={async () => { await api(`/jobs/${j.id}`, { method: 'PATCH', body: { status: 'shortlisted' } }); list.reload(); }} done="Moved to Saved">Actually, I’m interested</Btn>
+              {j.status === 'filtered' && (
+                <Btn className="ghost" onClick={async () => { await api(`/jobs/${j.id}/vote`, { body: { vote: 1, reason: 'other', note: 'Rescued from the screened-out list' } }); list.reload(); }} done="👍 Noted — I’ll look for more like this">Actually, I like this one</Btn>
               )}
             </div>
           </div>

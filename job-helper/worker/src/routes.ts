@@ -14,6 +14,8 @@ import {
   afterContact, extractPdfText, getOnboarding, importGmailDocuments, importSentEmails, ingestJobs, learnVoice, ONBOARD_STEPS, prepareApplication,
   processFollowUps, queueApplication, runOnboardStep, runSearch, scoreJob, sendOutboxItem, syncInbox, type OnboardStep,
 } from './pipeline';
+import { addFeedback, DOWN_REASONS, getLessons, learnFromFeedback, UP_REASONS, voteJob } from './learning';
+import { buildDigest, collectDigest, sendDigest } from './digest';
 
 const DOC_KINDS = ['resume', 'cover_letter', 'email', 'writing_sample', 'reference', 'other'];
 const APP_STATUSES = ['drafting', 'ready', 'submitted', 'following_up', 'interviewing', 'offer', 'won', 'rejected', 'closed', 'withdrawn'];
@@ -66,6 +68,19 @@ async function fillPrefsFromGoogle(env: Env, name: string, email: string): Promi
   await setSetting(env, 'prefs', { ...prefs, name: prefs.name || name, email: prefs.email || email });
 }
 
+function h(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function votePage(title: string, inner: string, app: string): Response {
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${h(title)} — Next Chapter</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.5;color:#1f2a2e;background:#f7f5f0;margin:0;padding:24px}
+.c{max-width:520px;margin:6vh auto;background:#fff;border:1px solid #e2ddd2;border-radius:14px;padding:20px 24px}
+.b{display:inline-block;background:#2f6f62;color:#fff;border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}</style></head>
+<body><div class="c"><h1 style="font-size:24px;margin:0 0 8px">🌱 ${h(title)}</h1>${inner}<p style="font-size:14px;color:#5d6b70;margin-top:20px"><a href="${h(app)}" style="color:#2f6f62">Next Chapter</a></p></div></body></html>`,
+  { headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" } });
+}
+
 export async function publicRoutes(request: Request, env: Env, path: string): Promise<Response | null> {
   if (path === '/api/health') return json({ ok: true });
 
@@ -90,6 +105,36 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
     if (!email || (allowed.length && !allowed.includes(email))) return error('Not on the guest list', 403);
     const u = await upsertUser(env, email, email.split('@')[0]);
     return json({ token: await signJwt(env, { sub: u.id, email: u.email, name: u.name }, 30 * DAY) });
+  }
+
+  // One-tap 👍/👎 from the morning email. GET shows a confirm page (link scanners never vote); POST records it.
+  if (path === '/api/q') {
+    const url = new URL(request.url);
+    const form = request.method === 'POST' ? await request.formData() : null;
+    const t = (form?.get('t') as string | null) ?? url.searchParams.get('t') ?? '';
+    const claim = await verifyJwt(env, t);
+    const m = claim?.purpose?.match(/^vote:(\d+):(-?1)$/);
+    if (!claim || !m || claim.email !== ownerEmail(env)) return votePage('This link has expired', '<p>Open the app to vote on this job.</p>', frontUrl(env, request));
+    const jobId = Number(m[1]);
+    const vote = Number(m[2]) as 1 | -1;
+    const job = await env.DB.prepare('SELECT id, title, company, vote FROM jobs WHERE id = ?').bind(jobId).first<{ id: number; title: string; company: string; vote: number | null }>();
+    if (!job) return votePage('That job is gone', '', frontUrl(env, request));
+    const app = frontUrl(env, request);
+    if (form) {
+      const res = await voteJob(env, jobId, { vote, reason: (form.get('reason') as string) || undefined, note: (form.get('note') as string) || undefined });
+      const msg = vote > 0
+        ? `<p>👍 Got it — you like <strong>${h(job.title)}</strong> at ${h(job.company)}. I’ll write your application and look for more like it.</p>`
+        : `<p>👎 Got it — I’ll show you fewer jobs like <strong>${h(job.title)}</strong>.${res.blockedCompany ? ` And no more jobs from ${h(res.blockedCompany)}.` : ''}</p>`;
+      return votePage('Thank you!', `${msg}<p><a class="b" href="${h(app)}/#/">Open Next Chapter</a></p>`, app);
+    }
+    const reasons = vote > 0 ? UP_REASONS : DOWN_REASONS;
+    const body = `<p>${vote > 0 ? '👍 You like' : '👎 Not for you:'} <strong>${h(job.title)}</strong> at ${h(job.company)}${job.vote ? ' <em>(you voted on this already — this will change it)</em>' : ''}</p>
+      <form method="POST"><input type="hidden" name="t" value="${h(t)}">
+      <p><strong>${vote > 0 ? 'What do you like about it?' : 'Why not?'}</strong> <span style="color:#5d6b70">(optional, but it helps me learn)</span></p>
+      ${Object.entries(reasons).map(([k, v]) => `<label style="display:block;margin:6px 0"><input type="radio" name="reason" value="${k}"> ${h(v)}</label>`).join('')}
+      <textarea name="note" rows="3" placeholder="Anything else? (optional)" style="width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid #cfc8ba;margin-top:6px"></textarea>
+      <p><button class="b" type="submit">${vote > 0 ? '👍 Yes, I like it' : '👎 Not for me'}</button></p></form>`;
+    return votePage(vote > 0 ? 'Thumbs up?' : 'Thumbs down?', body, app);
   }
 
   if (path === '/api/google/callback' && request.method === 'GET') {
@@ -175,12 +220,12 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
         q(`SELECT o.*, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id
            WHERE o.status IN ('pending','failed') ORDER BY o.id DESC LIMIT 20`),
         q(`SELECT a.id, a.apply_method, a.ai_notes, a.updated_at, j.title, j.company, j.fit_score, j.location, j.work_mode FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'ready' ORDER BY j.fit_score DESC LIMIT 20`),
-        q(`SELECT id, title, company, location, work_mode, salary, fit_score, fit_label, fit_summary, found_at FROM jobs WHERE status = 'new' AND fit_score >= 70 ORDER BY fit_score DESC, found_at DESC LIMIT 8`),
+        q(`SELECT id, title, company, location, work_mode, salary, fit_score, fit_label, fit_summary, found_at, url FROM jobs WHERE status = 'new' AND vote IS NULL AND fit_score IS NOT NULL ORDER BY fit_score DESC, found_at DESC LIMIT 30`),
         q(`SELECT e.*, j.title, j.company FROM app_events e JOIN applications a ON a.id = e.application_id JOIN jobs j ON j.id = a.job_id WHERE e.type IN ('reply','status') ORDER BY e.id DESC LIMIT 8`),
         q(`SELECT a.id, a.status, a.last_contact_at, a.submitted_at, a.follow_up_count, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status IN ('submitted','following_up','interviewing','offer') ORDER BY a.updated_at DESC LIMIT 20`),
         getSetting(env, 'last_search'),
       ]);
-      return json({ counts, waiting, ready, matches, replies, active: upcoming, last_search: lastSearch, prefs: await getPrefs(env) });
+      return json({ counts, waiting, ready, to_vote: matches, replies, active: upcoming, last_search: lastSearch, last_learning: await getSetting(env, 'last_learning'), prefs: await getPrefs(env) });
     }],
     ['GET', '/api/status', async () => {
       const voice = await getVoice(env);
@@ -268,7 +313,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       if (mode === 'local') where.push("j.work_mode IN ('onsite','hybrid')");
       if (q) { where.push('(j.title LIKE ? OR j.company LIKE ? OR j.location LIKE ?)'); args.push(`%${q}%`, `%${q}%`, `%${q}%`); }
       const { results } = await env.DB.prepare(
-        `SELECT j.id, j.source, j.title, j.company, j.location, j.work_mode, j.salary, j.posted_at, j.found_at, j.fit_score, j.fit_label, j.fit_summary, j.status, j.url,
+        `SELECT j.id, j.source, j.title, j.company, j.location, j.work_mode, j.salary, j.posted_at, j.found_at, j.fit_score, j.fit_label, j.fit_summary, j.status, j.url, j.vote,
            (SELECT a.id FROM applications a WHERE a.job_id = j.id ORDER BY a.id DESC LIMIT 1) AS application_id
          FROM jobs j WHERE ${where.join(' AND ')} ORDER BY j.fit_score IS NULL, j.fit_score DESC, j.found_at DESC LIMIT 200`,
       ).bind(...args).all();
@@ -314,6 +359,45 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       return json({ ok: true });
     }],
     ['POST', '/api/search', async () => json(await runSearch(env))],
+    ['GET', '/api/vote-reasons', async () => json({ up: UP_REASONS, down: DOWN_REASONS })],
+    ['POST', '/api/jobs/:id/vote', async (req, p) => {
+      const b = await body<{ vote?: number; reason?: string; note?: string }>(req);
+      if (b.vote !== 1 && b.vote !== -1) return error('vote must be 1 or -1');
+      return json(await voteJob(env, int(p.id), { vote: b.vote, reason: str(b.reason, 40), note: str(b.note, 1000) }));
+    }],
+
+    // ---- feedback + what the app has learned
+    ['POST', '/api/feedback', async (req) => {
+      const b = await body<{ sentiment?: string; about?: string; application_id?: number; context?: string; text?: string }>(req);
+      const sentiment = b.sentiment === 'good' || b.sentiment === 'bad' ? b.sentiment : 'note';
+      const text = (str(b.text, 4000) ?? '').trim() || (sentiment === 'good' ? 'This was good.' : '');
+      if (!text) return error('Tell me a little about what was wrong, so I can fix it.');
+      await addFeedback(env, { sentiment, about: str(b.about, 40) ?? 'general', application_id: typeof b.application_id === 'number' ? b.application_id : null, context: str(b.context, 2500) ?? null, text });
+      return json(await learnFromFeedback(env));
+    }],
+    ['GET', '/api/lessons', async () => {
+      const recent = (await env.DB.prepare('SELECT id, sentiment, about, text, created_at FROM feedback ORDER BY id DESC LIMIT 20').all()).results;
+      const votes = await env.DB.prepare('SELECT SUM(vote = 1) AS up, SUM(vote = -1) AS down FROM jobs WHERE vote IS NOT NULL').first<{ up: number; down: number }>();
+      return json({ lessons: await getLessons(env), last_learning: await getSetting(env, 'last_learning'), recent_feedback: recent, votes });
+    }],
+    ['PUT', '/api/lessons', async (req) => {
+      const b = await body<{ writing?: string[]; job_search?: string[]; process?: string[] }>(req);
+      const cur = await getLessons(env);
+      const clean = (a: unknown, fallback: string[]) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string' && !!x.trim()).map((x) => x.slice(0, 400)).slice(0, 20) : fallback);
+      await setSetting(env, 'lessons', { writing: clean(b.writing, cur.writing), job_search: clean(b.job_search, cur.job_search), process: clean(b.process, cur.process), updated_at: cur.updated_at ?? new Date().toISOString() });
+      return json({ ok: true });
+    }],
+
+    // ---- the morning email
+    ['GET', '/api/digest/preview', async () => {
+      const d = buildDigest(await collectDigest(env));
+      return json({ subject: d.subject, html: d.html });
+    }],
+    ['POST', '/api/digest/send', async () => {
+      const r = await sendDigest(env);
+      if (!r.sent) return error('Connect Gmail first — the morning email is sent from and to her Gmail.');
+      return json(r);
+    }],
     ['POST', '/api/jobs/:id/prepare', async (req, p) => {
       const b = await body<{ feedback?: string }>(req).catch(() => ({} as { feedback?: string }));
       const app = await prepareApplication(env, int(p.id), { feedback: str(b.feedback, 2000), by: 'her' });

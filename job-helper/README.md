@@ -9,35 +9,49 @@ A private web app that does most of the job hunt for her. She opens one link and
 
 After that:
 
-1. **Holds her documents and learns her voice.** She uploads resumes, cover letters, emails, and other writing (Word, PDF, text, or her Gmail sent folder). Claude reads them and builds:
-   - a **career record**: every fact about her work history. Drafts may only use these facts.
-   - a **voice guide**: how she actually writes (greetings, sign-offs, phrases, tone).
-   Each time she edits a draft, the before and after are saved, and later drafts follow those changes.
-2. **Finds jobs every morning, local and remote, and checks the fit.** Sources:
-   - remote job boards (Remotive, RemoteOK, Himalayas)
-   - local search (Adzuna, USAJobs)
-   - an **AI web scout** that searches city and county pages, school districts, hospitals, local papers, and employer sites near her town
-   - any company careers page on Greenhouse or Lever, and any RSS job feed
-   A free keyword screen runs first. Claude then scores each remaining job 0–100 against her career record and wishes (pay, commute radius, remote or in person), with plain-language reasons and gaps. It also flags likely scams.
-3. **Writes a tailored resume, cover letter, and email for each job**, in her voice. It also drafts answers to common application-form questions. Everything downloads as Word files or prints to PDF. She can ask for changes in plain words ("make it warmer").
-4. **Submits and follows up.**
-   - **Email applications:** sends from *her* Gmail with the resume and cover letter attached as .docx.
-   - **Website applications:** gives her a short checklist (download the files, open the application page, paste the answers), then one tap on "I submitted it."
-   - **Follow-ups:** drafted automatically after 7 and then 10 more days of silence, threaded under the original email.
-5. **Tracks every application until it's won or closed.** It reads her Gmail inbox for replies and works out which application each one is about, even when an applicant-tracking system sends it from a no-reply address. Claude sorts each reply as interview, offer, rejection, needs-info, or auto-acknowledgement and moves the application along. When a reply needs an answer, it drafts one. Quiet applications close themselves after the last follow-up. She can also get a short morning summary email.
+1. **Holds her documents and learns her voice.** Resumes, cover letters, emails, and other writing (Word, PDF, text, or straight from her Gmail). Claude builds a **career record** (the only facts drafts may use) and a **voice guide** (how she actually writes). Her edits to drafts are kept as examples.
+2. **Finds jobs every morning, starting with tech sales.** Default targets:
+   - roles: SDR/BDR, Account Executive, Account Manager, Customer Success, and Inside Sales
+   - employers: software, SaaS, and tech companies, remote or nearby
+   
+   She can change all of this in Settings. Sources are remote boards (Remotive, RemoteOK, Himalayas), local search (Adzuna, USAJobs), an **AI web scout** for local listings, Greenhouse/Lever careers pages, and RSS feeds. Claude scores each job 0–100 against her record, her wishes, and everything she's taught it. Only jobs above her bar (60 by default) are recommended; the rest are screened out but still viewable.
+3. **Every recommended job needs her 👍 or 👎.** She votes in the app or straight from the morning email. A reason is optional (e.g. "Not the kind of work I want", "Pay too low", "Don't want this company").
+   - Her votes and reasons go into every later fit check, so she sees fewer jobs like the ones she passed on.
+   - "Don't want this company" blocks that employer for good.
+   - Applications are only written for jobs she likes. A 👍 gets a draft within the hour.
+4. **Learns from her feedback.** There are 👍/👎 buttons and a note on every draft, message, and job, a "How am I doing?" box, and she can simply reply to the morning email. Claude turns all of it into short **lessons** and follows them every time it writes, scores, or searches. Lessons fall into three groups:
+   - which jobs to show her
+   - how to write for her
+   - how to work with her
+   
+   When she's explicit, it also updates her settings, e.g. "Stop showing me cold-calling jobs" adds an excluded keyword. She can read, add, and delete lessons on the **Learning** page.
+5. **Writes a tailored resume, cover letter, email, and form answers for each job**, in her voice. Downloads as Word files or prints to PDF. She can ask for changes in plain words. A request like "make it warmer" applies to all future drafts too, not just this one.
+6. **Submits and follows up.**
+   - **Email applications:** sends from her Gmail with the files attached.
+   - **Website applications:** a checklist plus an "I submitted it" button.
+   - **Follow-ups:** drafted after 7, then 10 more days of silence, threaded under the original.
+7. **Tracks every application until it's won or closed.** It reads her inbox for employer replies and files each with the right application, even from no-reply applicant-tracking systems. It classifies the reply, moves the application along, and drafts a response when one is needed.
+8. **Emails her every morning** with:
+   - **what she needs to do**: new jobs to vote on (with one-tap 👍/👎 buttons), drafts to look over, messages to OK
+   - **what it did for her**: listings searched, jobs recommended and skipped, applications written and sent, follow-ups, replies noticed, applications closed
+   - **what it learned from her lately**
+   
+   Replying to the email is feedback.
 
 ## Safety: what it will and won't do on its own
 
 | Action | Default |
 |---|---|
 | Search, screen, check fit | Automatic, daily |
-| Write drafts for jobs scoring ≥ 80 | Automatic (adjustable, can be turned off) |
+| Recommend jobs | Only above her fit bar; **each needs her 👍 or 👎** |
+| Write an application | Only for jobs she gave a 👍 (automatic within the hour, can be turned off) |
 | Send an application email | **Waits for her OK.** Optional autopilot in Settings. |
 | Send a follow-up | **Waits for her OK.** Optional autopilot, weekdays 8am–5pm only. |
 | Reply to a person (interview request, question) | **Always waits for her OK.** No setting changes this. |
 | Fill in a company's website application form | Never. She submits those herself (see below). |
 
 - **Honesty:** every prompt tells Claude it may not invent or inflate employers, dates, titles, degrees, licenses, numbers, or skills. Each draft includes a "Before you send" note listing anything she should double-check.
+- **One-tap votes from email:** the 👍/👎 links are signed and expire after 14 days. They open a small confirm page, so mail scanners that pre-open links can't vote for her.
 - **Scam screening:** postings that ask for money, gift cards, or bank or SSN details before an interview are flagged and scored ≤ 15.
 - **Prompt injection:** job postings and employer emails are passed to Claude as clearly marked outside content, so text in them is treated as information, not instructions.
 - **Who can sign in:** only the Google accounts in the `ALLOWED_EMAILS` secret. The first address is the job seeker; anyone else listed is a helper. Helpers sign in through a separate link that asks Google for name and email only, never Gmail. If a helper uses her button by mistake, the Gmail access they granted is handed straight back. Removing an address from the list signs that person out immediately.

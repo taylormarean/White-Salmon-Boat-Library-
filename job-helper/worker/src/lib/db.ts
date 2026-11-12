@@ -58,6 +58,9 @@ export interface JobRow {
   apply_method: string | null;
   application_email: string | null;
   status: string;
+  vote: number | null;
+  vote_reason: string | null;
+  voted_at: string | null;
 }
 
 export interface AppRow {

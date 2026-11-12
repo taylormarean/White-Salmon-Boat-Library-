@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import type { Prefs } from '../lib/prefs';
 import type { Voice } from '../lib/db';
 import { aiWebScout } from '../lib/ai';
-import { careerContext, scoutInstructions, scoutMock, SCOUT_SCHEMA, type ScoutResult } from '../lib/prompts';
+import { careerContext, scoutInstructions, scoutMock, SCOUT_SCHEMA, type ScoutResult, type Taste } from '../lib/prompts';
 import { parseAdzuna, parseGreenhouse, parseHimalayas, parseLever, parseRemoteOK, parseRemotive, parseRss, parseUsaJobs } from './parsers';
 import type { RawJob } from './types';
 
@@ -35,7 +35,7 @@ export function locationParts(home: string): { city?: string; region?: string } 
   return { city: city || undefined, region: region || undefined };
 }
 
-export async function fetchAllSources(env: Env, prefs: Prefs, voice: Voice): Promise<{ jobs: RawJob[]; report: SourceReport[] }> {
+export async function fetchAllSources(env: Env, prefs: Prefs, voice: Voice, taste?: Taste): Promise<{ jobs: RawJob[]; report: SourceReport[] }> {
   const s = prefs.sources;
   const local = prefs.want_local && !!prefs.home_location;
   const fetchers: Fetcher[] = [
@@ -94,7 +94,7 @@ export async function fetchAllSources(env: Env, prefs: Prefs, voice: Voice): Pro
       run: async () => {
         const loc = locationParts(prefs.home_location);
         const result = await aiWebScout<ScoutResult>(env, {
-          context: careerContext(voice, prefs),
+          context: careerContext(voice, prefs, taste),
           instructions: scoutInstructions(prefs),
           user: `Find current openings for her near ${prefs.home_location}. Today is ${new Date().toDateString()}.`,
           location: { type: 'approximate', city: loc.city, region: loc.region, country: 'US', timezone: env.TIMEZONE || 'America/Los_Angeles' },

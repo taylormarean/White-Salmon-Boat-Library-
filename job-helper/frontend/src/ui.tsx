@@ -85,7 +85,13 @@ export const MODE: Record<string, string> = { remote: '🏠 Remote', onsite: '�
 
 /** "📍 In person · Hood River, OR · $24/hr" — skips empty parts. */
 export function meta(...parts: (string | null | undefined | false)[]): string {
-  return parts.filter((p): p is string => !!p && !!p.trim()).join(' · ');
+  const kept = parts.filter((p): p is string => !!p && !!p.trim());
+  // "🏠 Remote · Remote (US)" → "🏠 Remote (US)"
+  const remoteLoc = kept.find((p) => /^remote\b/i.test(p));
+  return kept
+    .filter((p) => !(remoteLoc && p === MODE.remote))
+    .map((p) => (remoteLoc && p === remoteLoc ? `🏠 ${p}` : p))
+    .join(' · ');
 }
 
 export function when(s: string | null | undefined): string {
@@ -180,6 +186,12 @@ export function MessageCard({ m, onChange, showJob = true }: { m: OutboxItem; on
           <pre className="mail">{m.body}</pre>
         </>
       )}
+      {open && !editing && (m.kind === 'follow_up' || m.kind === 'reply') && (
+        <details style={{ marginTop: '.6rem' }}>
+          <summary className="small">Tell me how this draft was</summary>
+          <div style={{ marginTop: '.5rem' }}><FeedbackBox compact about={m.kind} applicationId={m.application_id ?? undefined} prompt="This message:" context={`${m.subject}\n${m.body}`} /></div>
+        </details>
+      )}
       {open && (
         <div className="row" style={{ marginTop: '.75rem' }}>
           {editing ? (
@@ -196,6 +208,92 @@ export function MessageCard({ m, onChange, showJob = true }: { m: OutboxItem; on
               <Btn className="ghost danger" onClick={async () => { await api(`/outbox/${m.id}/cancel`, { method: 'POST' }); onChange(); }}>Don’t send</Btn>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- 👍 / 👎 on a job (required for every recommendation)
+
+const UP: Record<string, string> = { role: 'The kind of work I want', company: 'Great company', pay: 'Good pay', remote: 'Location / remote works', other: 'Something else' };
+const DOWN: Record<string, string> = {
+  not_my_kind: 'Not the kind of work I want', too_senior: 'Needs skills I don’t have', too_junior: 'Too junior', pay: 'Pay too low',
+  location: 'Too far / wrong location', company: 'Don’t want this company', schedule: 'Hours don’t work', other: 'Something else',
+};
+
+export function VoteButtons({ jobId, vote, onVoted, big = false }: { jobId: number; vote: number | null; onVoted: () => void; big?: boolean }) {
+  const [mine, setMine] = useState<number | null>(vote);
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState('');
+  const [note, setNote] = useState('');
+  const toast = useToast();
+  const cast = async (v: 1 | -1, r?: string, n?: string) => {
+    const res = await api<{ blockedCompany: string | null; withdrew: boolean }>(`/jobs/${jobId}/vote`, { body: { vote: v, reason: r, note: n } });
+    setMine(v);
+    if (res.blockedCompany) toast(`Got it — no more jobs from ${res.blockedCompany}.`);
+    return res;
+  };
+  if (asking && mine) {
+    const reasons = mine > 0 ? UP : DOWN;
+    return (
+      <div className="vote-why">
+        <div className="small"><strong>{mine > 0 ? '👍 Thanks! What do you like about it?' : '👎 Got it. What’s wrong with it?'}</strong> <span className="muted">optional — it helps me learn</span></div>
+        <div className="row" style={{ gap: '.4rem', margin: '.5rem 0' }}>
+          {Object.entries(reasons).map(([k, v]) => (
+            <button key={k} className={`chip ${reason === k ? 'on' : ''}`} onClick={() => setReason(reason === k ? '' : k)}>{v}</button>
+          ))}
+        </div>
+        <div className="row">
+          <input className="grow" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything else? (optional)" />
+          <Btn className="primary" onClick={async () => { if (reason || note.trim()) await cast(mine as 1 | -1, reason || undefined, note.trim() || undefined); setAsking(false); onVoted(); }}>Done</Btn>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="row" style={{ gap: '.5rem' }}>
+      <Btn className={`vote up ${mine === 1 ? 'on' : ''} ${big ? 'big' : ''}`} onClick={async () => { await cast(1); setReason(''); setAsking(true); }}>👍 I like it</Btn>
+      <Btn className={`vote down ${mine === -1 ? 'on' : ''} ${big ? 'big' : ''}`} onClick={async () => { await cast(-1); setReason(''); setAsking(true); }}>👎 Not for me</Btn>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- "How did I do?" feedback
+
+export function FeedbackBox({ about = 'general', applicationId, context, prompt, onDone, compact = false }: {
+  about?: string; applicationId?: number; context?: string; prompt?: string; onDone?: () => void; compact?: boolean;
+}) {
+  const [sentiment, setSentiment] = useState<'good' | 'bad' | null>(null);
+  const [text, setText] = useState('');
+  const [reply, setReply] = useState<{ reply: string; changes: string[] } | null>(null);
+  if (reply) {
+    return (
+      <div className="notes" style={{ background: 'var(--brand-soft)' }}>
+        🧠 {reply.reply}
+        {reply.changes.length > 0 && <ul className="small" style={{ margin: '.4rem 0 0' }}>{reply.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>}
+        <div><button className="ghost small" onClick={() => { setReply(null); setSentiment(null); setText(''); }}>Tell me something else</button></div>
+      </div>
+    );
+  }
+  return (
+    <div className={compact ? '' : 'card'}>
+      <div className="row" style={{ gap: '.5rem' }}>
+        <span className={compact ? 'small' : ''}><strong>{prompt ?? 'How am I doing?'}</strong></span>
+        <button className={`chip ${sentiment === 'good' ? 'on' : ''}`} onClick={() => setSentiment('good')}>👍 Did well</button>
+        <button className={`chip ${sentiment === 'bad' ? 'on' : ''}`} onClick={() => setSentiment('bad')}>👎 Needs work</button>
+      </div>
+      {sentiment && (
+        <div style={{ marginTop: '.6rem' }}>
+          <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={sentiment === 'good' ? 'What did you like? (optional)' : 'What should I do differently? e.g. “Too formal”, “Stop sending jobs that need a degree”'} />
+          <div className="row" style={{ marginTop: '.5rem' }}>
+            <Btn className="primary" busyText="Learning…" disabled={sentiment === 'bad' && !text.trim()}
+              onClick={async () => { setReply(await api('/feedback', { body: { sentiment, about, application_id: applicationId, context, text } })); onDone?.(); }}>
+              Send
+            </Btn>
+            <button className="ghost" onClick={() => setSentiment(null)}>Cancel</button>
+          </div>
         </div>
       )}
     </div>

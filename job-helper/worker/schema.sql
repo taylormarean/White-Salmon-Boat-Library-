@@ -59,6 +59,10 @@ CREATE TABLE IF NOT EXISTS jobs (
   apply_method TEXT,
   application_email TEXT,
   status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','filtered','shortlisted','dismissed','applying')),
+  -- her verdict on a recommended job: 1 = 👍, -1 = 👎 (required for every recommendation)
+  vote INTEGER,
+  vote_reason TEXT,
+  voted_at TEXT,
   UNIQUE (source, external_id)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, fit_score);
@@ -118,6 +122,18 @@ CREATE TABLE IF NOT EXISTS outbox (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status);
+
+-- What she says the app did well or poorly. Claude distills these (and her job votes) into lessons.
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sentiment TEXT NOT NULL CHECK (sentiment IN ('good','bad','note')),
+  about TEXT NOT NULL DEFAULT 'general',   -- general | resume | cover_letter | email | follow_up | reply | job_search | digest
+  application_id INTEGER,
+  context TEXT,                            -- excerpt of what she was reacting to
+  text TEXT NOT NULL,
+  learned INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- Gmail messages already looked at, so replies are classified once.
 CREATE TABLE IF NOT EXISTS inbox_seen (

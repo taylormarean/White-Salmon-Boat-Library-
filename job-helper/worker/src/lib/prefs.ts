@@ -12,6 +12,9 @@ export interface Prefs {
   want_remote: boolean;
   want_local: boolean;         // in-person or hybrid within radius
   wishes: string;              // free text: "part-time ok, no night shifts, love working with kids"
+  industry_focus: string;      // what kind of work/industry to focus the search on
+  exclude_companies: string[]; // employers she never wants to see again (a 👎 for "the company" adds here)
+  min_fit_to_recommend: number; // jobs scoring below this are screened out instead of asking for her vote
   sources: {
     remotive: boolean;
     remoteok: boolean;
@@ -27,13 +30,13 @@ export interface Prefs {
     daily_search: boolean;
     daily_hour: number;              // local hour to run the daily search
     max_scores_per_run: number;      // cost guard: AI fit checks per day
-    auto_prepare_threshold: number;  // fit score at which drafts are written automatically (0 = off)
+    auto_prepare_threshold: number;  // > 0: write the application automatically once she gives a job 👍 (0 = off)
     auto_send_applications: boolean; // send email applications without waiting for her OK
     auto_send_follow_ups: boolean;   // send follow-ups without waiting for her OK
     follow_up_days: number[];        // days to wait before each follow-up (from last contact)
     close_after_days: number;        // after the last follow-up, mark closed if still silent
     interview_check_in_days: number;
-    daily_digest: boolean;           // morning summary email to her
+    daily_digest: boolean;           // morning email: what she needs to do + what the app did for her
   };
 }
 
@@ -43,12 +46,23 @@ export const DEFAULT_PREFS: Prefs = {
   phone: '',
   home_location: '',
   radius_miles: 30,
-  target_roles: [],
-  exclude_keywords: [],
+  // Starting focus: tech sales. She can change any of this in Settings.
+  target_roles: [
+    'Sales Development Representative',
+    'Business Development Representative',
+    'Account Executive',
+    'Account Manager',
+    'Customer Success Manager',
+    'Inside Sales Representative',
+  ],
+  exclude_keywords: ['commission only', '100% commission', 'door to door', 'door-to-door'],
   min_salary: null,
   want_remote: true,
   want_local: true,
   wishes: '',
+  industry_focus: 'Tech sales — selling software, SaaS, or other technology products and services (B2B), remote or nearby',
+  exclude_companies: [],
+  min_fit_to_recommend: 60,
   sources: {
     remotive: true,
     remoteok: true,

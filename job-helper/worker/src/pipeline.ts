@@ -19,6 +19,8 @@ import { connectedEmail, getAttachment, getMessage, gmailStatus, listMessages, s
 import { docxToText } from './lib/unzip';
 import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
 import { fetchAllSources, type SourceReport } from './sources';
+import { addFeedback, getLessons, getTaste, learnFromFeedback, learningPending } from './learning';
+import { sendDigest } from './digest';
 import type { RawJob } from './sources/types';
 
 const ACTIVE = ['submitted', 'following_up', 'interviewing', 'offer'];
@@ -120,9 +122,9 @@ export async function ingestJobs(env: Env, raw: RawJob[]): Promise<{ added: numb
 export async function scoreJob(env: Env, jobId: number): Promise<ScoreResult> {
   const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(jobId).first<JobRow>();
   if (!job) throw new AIError('Job not found');
-  const [prefs, voice] = await Promise.all([getPrefs(env), getVoice(env)]);
+  const [prefs, voice, taste] = await Promise.all([getPrefs(env), getVoice(env), getTaste(env)]);
   const r = await aiJSON<ScoreResult>(env, {
-    context: careerContext(voice, prefs),
+    context: careerContext(voice, prefs, taste),
     instructions: SCORE_INSTRUCTIONS,
     user: scoreUser(job),
     schema: SCORE_SCHEMA,
@@ -140,6 +142,10 @@ export async function scoreJob(env: Env, jobId: number): Promise<ScoreResult> {
        work_mode = CASE WHEN work_mode = 'unknown' THEN ? ELSE work_mode END
      WHERE id = ?`,
   ).bind(score, label, r.summary, JSON.stringify(r), r.apply_method, r.application_email, r.salary, r.work_mode, jobId).run();
+  // Only jobs worth her time are recommended (and need her 👍/👎); the rest are screened out, still viewable.
+  if (score < prefs.min_fit_to_recommend) {
+    await env.DB.prepare("UPDATE jobs SET status = 'filtered' WHERE id = ? AND status = 'new' AND vote IS NULL").bind(jobId).run();
+  }
   return { ...r, fit_score: score };
 }
 
@@ -160,12 +166,13 @@ export async function scorePending(env: Env, max: number): Promise<number> {
 }
 
 export async function runSearch(env: Env): Promise<{ report: SourceReport[]; added: number; screenedOut: number; scored: number; prepared: number }> {
-  const [prefs, voice] = await Promise.all([getPrefs(env), getVoice(env)]);
-  const { jobs, report } = await fetchAllSources(env, prefs, voice);
+  if (await learningPending(env)) await learnFromFeedback(env).catch((e) => logActivity(env, 'error', `Learning: ${e instanceof Error ? e.message : e}`));
+  const [prefs, voice, taste] = await Promise.all([getPrefs(env), getVoice(env), getTaste(env)]);
+  const { jobs, report } = await fetchAllSources(env, prefs, voice, taste);
   const { added, screenedOut } = await ingestJobs(env, jobs);
   const scored = await scorePending(env, prefs.autopilot.max_scores_per_run);
   const prepared = await autoPrepare(env);
-  await setSetting(env, 'last_search', { at: new Date().toISOString(), report, added, screenedOut, scored, prepared });
+  await setSetting(env, 'last_search', { at: new Date().toISOString(), report, seen: jobs.length, added, screenedOut, scored, prepared });
   await logActivity(env, 'search', `Search: ${jobs.length} postings seen, ${added} new (${screenedOut} screened out), ${scored} fit-checked, ${prepared} drafted`);
   return { report, added, screenedOut, scored, prepared };
 }
@@ -181,7 +188,7 @@ function applyMethodFor(job: JobRow): AppRow['apply_method'] {
 export async function prepareApplication(env: Env, jobId: number, opts: { feedback?: string; by: 'her' | 'autopilot' } = { by: 'her' }): Promise<AppRow> {
   const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(jobId).first<JobRow>();
   if (!job) throw new AIError('Job not found');
-  const [prefs, voice, examples] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env)]);
+  const [prefs, voice, examples, lessons] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env), getLessons(env)]);
   if (!voice.career_record) throw new AIError('Upload her resume and click "Learn my voice" first — drafts can only use facts from her career record.');
 
   let app = await env.DB.prepare("SELECT * FROM applications WHERE job_id = ? AND status NOT IN ('withdrawn') ORDER BY id DESC LIMIT 1").bind(jobId).first<AppRow>();
@@ -189,7 +196,7 @@ export async function prepareApplication(env: Env, jobId: number, opts: { feedba
   const fit = job.fit_json ? (JSON.parse(job.fit_json) as ScoreResult) : null;
 
   const d = await aiJSON<DraftResult>(env, {
-    context: writingContext(voice, prefs, examples),
+    context: writingContext(voice, prefs, examples, lessons),
     instructions: DRAFT_INSTRUCTIONS,
     user: draftUser(job, fit, opts.feedback, previous),
     schema: DRAFT_SCHEMA,
@@ -213,6 +220,11 @@ export async function prepareApplication(env: Env, jobId: number, opts: { feedba
   ).bind(d.resume_md, d.cover_letter_md, d.email_subject, d.email_body, JSON.stringify(d.form_answers), d.notes_for_her,
     isSubmitted ? app.status : 'ready', app.id).run();
   await addEvent(env, app.id, 'drafted', opts.feedback ? `Rewrote the drafts: “${truncate(opts.feedback, 120)}”` : 'Wrote a tailored resume, cover letter, and email');
+  if (opts.feedback) {
+    // "Make it warmer" should apply to every future draft, not just this one.
+    await addFeedback(env, { sentiment: 'bad', about: 'application', application_id: app.id, context: `Draft for ${job.title} at ${job.company}`, text: opts.feedback });
+  }
+  if (!job.vote) await env.DB.prepare("UPDATE jobs SET vote = 1, vote_reason = COALESCE(vote_reason, 'She chose to apply'), voted_at = datetime('now') WHERE id = ?").bind(jobId).run();
 
   // Autopilot may send email applications on its own — only if she turned that on.
   if (opts.by === 'autopilot' && method === 'email' && prefs.autopilot.auto_send_applications && !isSubmitted) {
@@ -221,16 +233,17 @@ export async function prepareApplication(env: Env, jobId: number, opts: { feedba
   return (await env.DB.prepare('SELECT * FROM applications WHERE id = ?').bind(app.id).first<AppRow>())!;
 }
 
-async function autoPrepare(env: Env): Promise<number> {
+export async function autoPrepare(env: Env): Promise<number> {
   const prefs = await getPrefs(env);
   const t = prefs.autopilot.auto_prepare_threshold;
   if (!t) return 0;
   const voice = await getVoice(env);
   if (!voice.career_record) return 0;
+  // Applications are only written for jobs she gave a 👍.
   const { results } = await env.DB.prepare(
-    `SELECT j.id FROM jobs j WHERE j.status = 'new' AND j.fit_score >= ?
-       AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id) ORDER BY j.fit_score DESC LIMIT 5`,
-  ).bind(t).all<{ id: number }>();
+    `SELECT j.id FROM jobs j WHERE j.vote = 1 AND j.status = 'shortlisted'
+       AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id) ORDER BY j.voted_at LIMIT 5`,
+  ).all<{ id: number }>();
   let n = 0;
   for (const { id } of results) {
     try {
@@ -378,10 +391,10 @@ export async function processFollowUps(env: Env, now = new Date()): Promise<{ dr
 }
 
 async function draftFollowUp(env: Env, app: AppRow & { title: string; company: string }, number: number, kind: string): Promise<MessageResult> {
-  const [prefs, voice, examples] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env)]);
+  const [prefs, voice, examples, lessons] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env), getLessons(env)]);
   const ctx = { title: app.title, company: app.company, submitted_at: app.submitted_at, subject: app.apply_method === 'email' ? app.email_subject : null, number, kind, history: await historyText(env, app.id) };
   return aiJSON<MessageResult>(env, {
-    context: writingContext(voice, prefs, examples),
+    context: writingContext(voice, prefs, examples, lessons),
     instructions: FOLLOW_UP_INSTRUCTIONS,
     user: followUpUser(ctx),
     schema: MESSAGE_SCHEMA,
@@ -410,12 +423,21 @@ export async function syncInbox(env: Env): Promise<{ checked: number; matched: n
 
   let checked = 0;
   let matched = 0;
+  let learnFromEmail = false;
   for (const { id } of ids) {
     if (await env.DB.prepare('SELECT 1 FROM inbox_seen WHERE gmail_id = ?').bind(id).first()) continue;
     checked++;
     const mail = await getMessage(env, id);
     if (senderAddress(mail.from) === me) {
       await env.DB.prepare('INSERT OR IGNORE INTO inbox_seen (gmail_id) VALUES (?)').bind(id).run();
+      // She replied to the morning email → that's feedback for the app.
+      if (/^re:.*your job search today/i.test(mail.subject)) {
+        const note = cleanEmailBody(mail.body).trim();
+        if (note) {
+          await addFeedback(env, { sentiment: 'note', about: 'digest', context: 'Her reply to the morning email', text: note });
+          learnFromEmail = true;
+        }
+      }
       continue;
     }
     const app = matchApplication(mail, apps) as (AppRow & { title: string; company: string }) | null;
@@ -437,6 +459,7 @@ export async function syncInbox(env: Env): Promise<{ checked: number; matched: n
     await handleReply(env, app, mail, c);
   }
   await setSetting(env, 'inbox_sync', { at: startedAt });
+  if (learnFromEmail) await learnFromFeedback(env);
   return { checked, matched };
 }
 
@@ -463,9 +486,9 @@ async function handleReply(env: Env, app: AppRow & { title: string; company: str
   if (newStatus) await addEvent(env, app.id, 'status', `Status → ${newStatus.replace('_', ' ')}`);
 
   if (c.needs_response && human) {
-    const [prefs, voice, examples] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env)]);
+    const [prefs, voice, examples, lessons] = await Promise.all([getPrefs(env), getVoice(env), recentExamples(env), getLessons(env)]);
     const r = await aiJSON<MessageResult>(env, {
-      context: writingContext(voice, prefs, examples),
+      context: writingContext(voice, prefs, examples, lessons),
       instructions: REPLY_INSTRUCTIONS,
       user: `Her application: ${app.title} at ${app.company}\n\n${classifyUser(app, mail).split('\n\n').slice(1).join('\n\n')}`,
       schema: MESSAGE_SCHEMA,
@@ -593,31 +616,6 @@ export async function runOnboardStep(env: Env, step: OnboardStep): Promise<Onboa
 
 // ------------------------------------------------------------------ daily digest + cron
 
-async function sendDigest(env: Env): Promise<void> {
-  const status = await gmailStatus(env);
-  if (!status.connected || !status.email) return;
-  const prefs = await getPrefs(env);
-  const { results: matches } = await env.DB.prepare(
-    "SELECT title, company, fit_score, location FROM jobs WHERE status IN ('new','applying') AND fit_score >= 70 AND found_at >= datetime('now','-1 day') ORDER BY fit_score DESC LIMIT 8",
-  ).all<{ title: string; company: string; fit_score: number; location: string }>();
-  const waiting = await env.DB.prepare("SELECT COUNT(*) AS n FROM outbox WHERE status = 'pending'").first<{ n: number }>();
-  const ready = await env.DB.prepare("SELECT COUNT(*) AS n FROM applications WHERE status = 'ready'").first<{ n: number }>();
-  const { results: replies } = await env.DB.prepare(
-    "SELECT e.summary, j.company FROM app_events e JOIN applications a ON a.id = e.application_id JOIN jobs j ON j.id = a.job_id WHERE e.type = 'reply' AND e.created_at >= datetime('now','-1 day')",
-  ).all<{ summary: string; company: string }>();
-  if (!matches.length && !waiting?.n && !ready?.n && !replies.length) return;
-  const first = prefs.name.split(' ')[0] || 'there';
-  const lines = [
-    `Good morning ${first}!`, '',
-    ...(replies.length ? ['Replies from employers:', ...replies.map((r) => `  • ${r.company}: ${r.summary}`), ''] : []),
-    ...(matches.length ? ['New jobs that look like a good fit:', ...matches.map((m) => `  • ${m.title} — ${m.company} (${m.location ?? 'remote'}) · fit ${m.fit_score}`), ''] : []),
-    ...(ready?.n ? [`${ready.n} application${ready.n === 1 ? ' is' : 's are'} drafted and ready for you to look over.`] : []),
-    ...(waiting?.n ? [`${waiting.n} message${waiting.n === 1 ? ' is' : 's are'} waiting for your OK before sending.`] : []),
-    '', `Open the app: ${(await getSetting<string>(env, 'app_url')) ?? env.FRONTEND_URL ?? ''}`,
-  ];
-  await sendEmail(env, { fromName: 'Next Chapter', to: status.email, subject: `Your job search today${replies.length ? ` — ${replies.length} repl${replies.length === 1 ? 'y' : 'ies'}` : ''}`, text: lines.join('\n') });
-}
-
 export async function runHourly(env: Env): Promise<void> {
   const tz = env.TIMEZONE || 'America/Los_Angeles';
   const now = new Date();
@@ -631,6 +629,8 @@ export async function runHourly(env: Env): Promise<void> {
   await step('send', () => sendApproved(env));
   await step('inbox', () => syncInbox(env));
   await step('follow-ups', () => processFollowUps(env, now));
+  await step('learn', async () => { if (await learningPending(env)) await learnFromFeedback(env); });
+  await step('drafts', () => autoPrepare(env)); // jobs she 👍'd get their application written within the hour
   const prefs = await getPrefs(env);
   const today = localDate(now, tz);
   const lastDaily = await getSetting<string>(env, 'last_daily');

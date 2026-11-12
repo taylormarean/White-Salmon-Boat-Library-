@@ -6,6 +6,7 @@ import { AIError } from './lib/ai';
 import { privateRoutes, publicRoutes } from './routes';
 import { runHourly } from './pipeline';
 import { allowedEmails } from './lib/gmail';
+import { migrate } from './lib/migrate';
 
 export type { Env };
 
@@ -38,6 +39,7 @@ export default {
       return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
     try {
+      await migrate(env);
       const pub = await publicRoutes(request, env, path);
       if (pub) return pub.status === 302 ? pub : withHeaders(pub, origin);
       const user = await currentUser(request, env);
@@ -58,6 +60,6 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runHourly(env));
+    ctx.waitUntil(migrate(env).then(() => runHourly(env)));
   },
 };

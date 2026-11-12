@@ -8,6 +8,7 @@ import Applications from './pages/Applications';
 import ApplicationDetail from './pages/ApplicationDetail';
 import Writing from './pages/Writing';
 import Settings from './pages/Settings';
+import Learning from './pages/Learning';
 import { useToast } from './ui';
 
 export interface Me {
@@ -36,6 +37,7 @@ const NAV = [
   { href: '#/jobs', icon: '🔎', label: 'Jobs' },
   { href: '#/applications', icon: '📋', label: 'Applications' },
   { href: '#/writing', icon: '✍️', label: 'My Writing' },
+  { href: '#/learning', icon: '🧠', label: 'Learning' },
   { href: '#/settings', icon: '⚙️', label: 'Settings' },
 ];
 
@@ -74,7 +76,7 @@ export default function App() {
   useEffect(() => { if (authed) loadMe(); }, [authed]);
   useEffect(() => {
     if (!authed) return;
-    api<{ waiting: unknown[]; ready: unknown[] }>('/home').then((h) => setWaiting(h.waiting.length + h.ready.length)).catch(() => {});
+    api<{ waiting: unknown[]; ready: unknown[]; to_vote: unknown[] }>('/home').then((h) => setWaiting(h.waiting.length + h.ready.length + h.to_vote.length)).catch(() => {});
   }, [authed, hash]);
 
   if (!authed) return <Login onIn={() => setAuthed(true)} error={initial.error} />;
@@ -87,6 +89,7 @@ export default function App() {
   else if (parts[0] === 'applications' && parts[1]) page = <ApplicationDetail id={parts[1]} />;
   else if (parts[0] === 'applications') page = <Applications />;
   else if (parts[0] === 'writing') page = <Writing />;
+  else if (parts[0] === 'learning') page = <Learning />;
   else if (parts[0] === 'settings') page = <Settings query={new URLSearchParams(query ?? '')} me={me} />;
   else page = <Today me={me} reloadMe={loadMe} />;
 

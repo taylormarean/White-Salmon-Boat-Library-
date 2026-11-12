@@ -5,7 +5,7 @@ import type { Me } from '../App';
 
 interface Prefs {
   name: string; email: string; phone: string; home_location: string; radius_miles: number; target_roles: string[]; exclude_keywords: string[];
-  min_salary: number | null; want_remote: boolean; want_local: boolean; wishes: string;
+  min_salary: number | null; want_remote: boolean; want_local: boolean; wishes: string; industry_focus: string; exclude_companies: string[]; min_fit_to_recommend: number;
   sources: { remotive: boolean; remoteok: boolean; himalayas: boolean; adzuna: boolean; usajobs: boolean; web_scout: boolean; greenhouse_boards: string[]; lever_sites: string[]; rss_feeds: string[] };
   autopilot: { daily_search: boolean; daily_hour: number; max_scores_per_run: number; auto_prepare_threshold: number; auto_send_applications: boolean; auto_send_follow_ups: boolean; follow_up_days: number[]; close_after_days: number; interview_check_in_days: number; daily_digest: boolean };
 }
@@ -20,6 +20,7 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
   const activity = useLoad<{ id: number; kind: string; message: string; created_at: string }[]>('/activity');
   const toast = useToast();
   const [p, setP] = useState<Prefs | null>(null);
+  const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null);
   useEffect(() => { if (prefs.data) setP(prefs.data); }, [prefs.data]);
   useEffect(() => {
     const g = query.get('gmail');
@@ -72,8 +73,26 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
             <div className="grow"><label>Lowest yearly pay <span className="hint">optional — $20/hr ≈ $41,600</span></label><input type="number" value={p.min_salary ?? ''} onChange={(e) => set({ min_salary: e.target.value ? Number(e.target.value) : null })} /></div>
           </div>
         </div>
+        <label>What to focus on <span className="hint">the kind of work or industry, in plain words</span></label>
+        <input value={p.industry_focus} onChange={(e) => set({ industry_focus: e.target.value })} />
         <label>Anything else, in your own words <span className="hint">e.g. “Part-time is fine. No weekends. I love working with kids.”</span></label>
         <textarea rows={3} value={p.wishes} onChange={(e) => set({ wishes: e.target.value })} />
+        <div className="grid2">
+          <div>
+            <label>Employers I never want to see <span className="hint">one per line — a 👎 “Don’t want this company” adds them here</span></label>
+            <textarea rows={3} value={lines(p.exclude_companies)} onChange={(e) => set({ exclude_companies: unlines(e.target.value) })} />
+          </div>
+          <div>
+            <label>Only ask me about jobs that fit at least <span className="hint">lower = more jobs to vote on; higher = only the best</span></label>
+            <select value={p.min_fit_to_recommend} onChange={(e) => set({ min_fit_to_recommend: Number(e.target.value) })}>
+              <option value={40}>40 — show me lots</option>
+              <option value={50}>50</option>
+              <option value={60}>60 — recommended</option>
+              <option value={70}>70</option>
+              <option value={80}>80 — only the best</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="section"><h2>Gmail</h2></div>
@@ -99,10 +118,16 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
       <div className="card">
         <label className="check"><input type="checkbox" checked={p.autopilot.daily_search} onChange={(e) => auto({ daily_search: e.target.checked })} />
           <span>Look for new jobs every morning at <input type="number" min={0} max={23} value={p.autopilot.daily_hour} onChange={(e) => auto({ daily_hour: Number(e.target.value) })} style={{ width: '4.5rem', display: 'inline-block' }} /> o’clock (24-hour)</span></label>
-        <label className="check"><input type="checkbox" checked={p.autopilot.daily_digest} onChange={(e) => auto({ daily_digest: e.target.checked })} /> Email me a short summary each morning</label>
-        <label className="check"><input type="checkbox" checked={p.autopilot.auto_prepare_threshold > 0} onChange={(e) => auto({ auto_prepare_threshold: e.target.checked ? 80 : 0 })} />
-          <span>Write a resume and cover letter automatically for jobs that fit at least
-            <input type="number" min={50} max={100} disabled={!p.autopilot.auto_prepare_threshold} value={p.autopilot.auto_prepare_threshold || 80} onChange={(e) => auto({ auto_prepare_threshold: Number(e.target.value) })} style={{ width: '4.5rem', display: 'inline-block', margin: '0 .4rem' }} />/ 100</span></label>
+        <label className="check"><input type="checkbox" checked={p.autopilot.daily_digest} onChange={(e) => auto({ daily_digest: e.target.checked })} />
+          <span>Email me every morning <span className="hint">what I need to do (with 👍/👎 buttons for new jobs) and what the app did for me</span></span></label>
+        {s.gmail.connected && (
+          <div className="row" style={{ margin: '0 0 .5rem 1.9rem' }}>
+            <Btn className="ghost" onClick={async () => setPreview(await api<{ subject: string; html: string }>('/digest/preview'))}>👀 Preview today’s email</Btn>
+            <Btn className="ghost" busyText="Sending…" onClick={async () => { const r = await api<{ subject: string }>('/digest/send', { method: 'POST' }); toast(`Sent: “${r.subject}”`); }}>✉️ Send it to me now</Btn>
+          </div>
+        )}
+        <label className="check"><input type="checkbox" checked={p.autopilot.auto_prepare_threshold > 0} onChange={(e) => auto({ auto_prepare_threshold: e.target.checked ? 60 : 0 })} />
+          <span>When I give a job 👍, write the resume and cover letter for me right away <span className="hint">within the hour — they wait for me to look over before anything is sent</span></span></label>
         <hr style={{ border: 0, borderTop: '1px solid var(--line)', margin: '1rem 0' }} />
         <label className="check"><input type="checkbox" checked={p.autopilot.auto_send_follow_ups} onChange={(e) => auto({ auto_send_follow_ups: e.target.checked })} />
           <span>Send follow-up emails without asking me first <span className="hint">They go out on weekdays during business hours. Off means each follow-up waits on the Today page for your OK.</span></span></label>
@@ -156,6 +181,15 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
       <div className="row" style={{ position: 'sticky', bottom: '1rem', marginTop: '1rem' }}>
         <Btn className="primary big" onClick={save} done="Settings saved">💾 Save settings</Btn>
       </div>
+
+      {preview && (
+        <div className="modal-back" onClick={() => setPreview(null)}>
+          <div className="modal" style={{ width: 'min(700px, 100%)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="row between"><strong>{preview.subject}</strong><button onClick={() => setPreview(null)}>Close</button></div>
+            <iframe title="Morning email preview" srcDoc={preview.html} sandbox="" style={{ width: '100%', height: '70vh', border: '1px solid var(--line)', borderRadius: 8, marginTop: '.75rem' }} />
+          </div>
+        </div>
+      )}
 
       <div className="section"><h2>Behind the scenes</h2></div>
       <div className="card small">

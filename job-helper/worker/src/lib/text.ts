@@ -99,6 +99,8 @@ export interface Candidate {
 export function prefilter(job: Candidate, prefs: Prefs, opts: { skipRoleCheck?: boolean } = {}): string | null {
   const hay = `${job.title}\n${job.description}`.toLowerCase();
   const title = job.title.toLowerCase();
+  const company = normalize(job.company);
+  if (prefs.exclude_companies.some((c) => normalize(c) && normalize(c) === company)) return `${job.company} is on her "no thanks" list`;
   for (const kw of prefs.exclude_keywords) {
     const k = kw.trim().toLowerCase();
     if (k && (title.includes(k) || hay.includes(k))) return `mentions "${kw}"`;

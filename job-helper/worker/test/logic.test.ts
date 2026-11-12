@@ -9,6 +9,7 @@ import { markdownToDocxBase64 } from '../src/lib/docx';
 import { docxToText } from '../src/lib/unzip';
 import { allowedEmails, authUrl, ownerEmail } from '../src/lib/gmail';
 import type { Env } from '../src/env';
+import { buildDigest, type DigestData } from '../src/digest';
 
 const cfg = DEFAULT_PREFS.autopilot; // follow_up_days [7, 10], close_after_days 21
 const day = (n: number) => new Date(Date.UTC(2026, 0, 1 + n, 18));
@@ -198,5 +199,55 @@ describe('Word attachments', () => {
   });
   it('rejects things that are not Word files', async () => {
     await expect(docxToText(new TextEncoder().encode('not a zip'))).rejects.toThrow();
+  });
+});
+
+describe('morning email', () => {
+  const base: DigestData = {
+    firstName: 'Linda', appUrl: 'https://nc.test',
+    toVote: [{ id: 7, title: 'Account Executive', company: 'Acme SaaS', location: null, work_mode: 'remote', salary: '$70k–$90k', fit_score: 82, fit_summary: 'Your <client> work fits.' }],
+    toVoteTotal: 3, voteLinks: { 7: { up: 'https://nc.test/api/q?t=UP', down: 'https://nc.test/api/q?t=DOWN' } },
+    ready: [{ id: 1, title: 'SDR', company: 'Beta' }], waiting: [],
+    news: [{ company: 'Gamma', summary: 'Wants a phone call Tuesday', application_id: 2 }],
+    did: { seen: 140, sources: 5, recommended: 6, screenedOut: 30, drafted: 2, sentApplications: 1, sentFollowUps: 1, sentReplies: 0, replies: 1, closed: 0 },
+    learned: { reply: 'Got it — shorter letters from now on.', changes: ['Now skipping jobs that mention: cold calling'] },
+  };
+  it('has the to-do, one-tap vote buttons, what it did, and what it learned', () => {
+    const d = buildDigest(base);
+    expect(d.subject).toBe('Your job search today — 1 reply from employers, 3 new jobs to vote on, 1 thing to OK');
+    expect(d.html).toContain('https://nc.test/api/q?t=UP');
+    expect(d.html).toContain('👎 Not for me');
+    expect(d.html).toContain('Your &lt;client&gt; work fits.'); // escaped
+    expect(d.html).toContain('…and 2 more');
+    expect(d.text).toContain('Looked through 140 job listings from 5 sources.');
+    expect(d.text).toContain('Sent 1 application from your Gmail.');
+    expect(d.text).toContain('Got it — shorter letters from now on.');
+    expect(d.text).toContain('reply to this email');
+  });
+  it('still says something on a quiet day', () => {
+    const d = buildDigest({ ...base, toVote: [], toVoteTotal: 0, ready: [], news: [], learned: null, did: { seen: 0, sources: 0, recommended: 0, screenedOut: 0, drafted: 0, sentApplications: 0, sentFollowUps: 0, sentReplies: 0, replies: 0, closed: 0 } });
+    expect(d.subject).toBe('Your job search today');
+    expect(d.text).toContain('Nothing today');
+    expect(d.text).toContain('A quiet day');
+  });
+  it('MIME carries both a plain and an HTML version', () => {
+    const raw = buildMime({ from: 'a@b.c', to: 'a@b.c', subject: 's', text: 'plain', html: '<b>rich</b>' }, 'B');
+    expect(raw).toContain('multipart/alternative; boundary="B_alt"');
+    expect(raw).toContain('Content-Type: text/html');
+    expect(raw).toContain('Content-Type: text/plain');
+  });
+});
+
+describe('tech sales focus + blocked employers', () => {
+  it('starts focused on tech sales roles', () => {
+    expect(DEFAULT_PREFS.target_roles).toContain('Account Executive');
+    expect(DEFAULT_PREFS.target_roles).toContain('Sales Development Representative');
+    expect(DEFAULT_PREFS.industry_focus).toMatch(/software|SaaS/);
+    expect(prefilter({ title: 'Account Executive, Mid-Market', company: 'Acme', description: 'Sell our SaaS platform', work_mode: 'remote' }, DEFAULT_PREFS)).toBeNull();
+    expect(prefilter({ title: 'Account Executive', company: 'Acme', description: 'This role is 100% commission', work_mode: 'remote' }, DEFAULT_PREFS)).toMatch(/commission/);
+  });
+  it('never shows an employer she gave a thumbs-down to', () => {
+    const prefs = mergePrefs({ exclude_companies: ['Acme, Inc.'] });
+    expect(prefilter({ title: 'Account Executive', company: 'ACME', description: '', work_mode: 'remote' }, prefs)).toMatch(/no thanks/);
   });
 });

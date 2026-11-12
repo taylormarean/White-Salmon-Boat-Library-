@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, download } from '../api';
-import { Btn, ErrorBox, Loading, Markdown, MessageCard, meta, MODE, STATUS, StatusBadge, useLoad, useToast, when, type OutboxItem } from '../ui';
+import { Btn, ErrorBox, FeedbackBox, Loading, Markdown, MessageCard, meta, MODE, STATUS, StatusBadge, useLoad, useToast, when, type OutboxItem } from '../ui';
 
 interface Event { id: number; type: string; summary: string; detail: string | null; created_at: string }
 interface AppFull {
@@ -58,6 +58,18 @@ export default function ApplicationDetail({ id }: { id: string }) {
       {tab === 'answers' && <Answers a={a} reload={reload} />}
       {tab === 'history' && <History a={a} reload={reload} />}
 
+      {(tab === 'resume' || tab === 'cover' || tab === 'email') && (
+        <div className="no-print" style={{ marginTop: '1.25rem' }}>
+          <FeedbackBox
+            key={tab}
+            about={tab === 'cover' ? 'cover_letter' : tab}
+            applicationId={a.id}
+            prompt={`How’s this ${tab === 'cover' ? 'cover letter' : tab}?`}
+            context={`${a.job.title} at ${a.job.company}:\n${(tab === 'resume' ? a.resume_md : tab === 'cover' ? a.cover_letter_md : a.email_body) ?? ''}`.slice(0, 2400)}
+          />
+          <p className="small muted" style={{ marginTop: '-.5rem' }}>What you tell me here changes every future application, not just this one.</p>
+        </div>
+      )}
       {tab !== 'history' && ['drafting', 'ready'].includes(a.status) && <Redraft a={a} reload={reload} />}
     </div>
   );

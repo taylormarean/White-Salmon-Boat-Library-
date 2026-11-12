@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { Btn, ErrorBox, Fit, FIT_WORD, Loading, meta, MODE, useLoad, when } from '../ui';
+import { Btn, ErrorBox, Fit, FIT_WORD, Loading, meta, MODE, useLoad, VoteButtons, when } from '../ui';
 
 interface JobFull {
   id: number; title: string; company: string; location: string; work_mode: string; salary: string; description: string; url: string; apply_url: string;
   posted_at: string; found_at: string; source: string; status: string; fit_score: number | null; fit_label: string | null; fit_summary: string | null;
-  apply_method: string | null; application_email: string | null;
+  apply_method: string | null; application_email: string | null; vote: number | null; vote_reason: string | null;
   fit: { strengths: string[]; gaps: string[]; red_flags: string[] } | null;
   application: { id: number; status: string } | null;
 }
@@ -29,6 +29,14 @@ export default function JobDetail({ id }: { id: string }) {
           <div className="muted">{meta(j.company, MODE[j.work_mode], j.location, j.salary)}</div>
           <div className="small muted">Found {when(j.found_at)} via {SOURCE[j.source] ?? j.source}{j.posted_at ? ` · posted ${when(j.posted_at)}` : ''}</div>
         </div>
+      </div>
+
+      <div className="card hl no-print" style={{ marginTop: '1rem' }}>
+        <div className="row between">
+          <strong>{j.vote === 1 ? '👍 You liked this one' : j.vote === -1 ? '👎 You said this isn’t for you' : 'Do you like this job?'}</strong>
+          {j.vote_reason && <span className="small muted">“{j.vote_reason}”</span>}
+        </div>
+        <div style={{ marginTop: '.5rem' }}><VoteButtons jobId={j.id} vote={j.vote} onVoted={reload} big /></div>
       </div>
 
       <div className="card" style={{ marginTop: '1rem' }}>
@@ -68,8 +76,7 @@ export default function JobDetail({ id }: { id: string }) {
           </Btn>
         )}
         {j.url && <a className="btn" href={j.url} target="_blank" rel="noreferrer">Open the original posting ↗</a>}
-        {j.status !== 'shortlisted' && !j.application && <Btn onClick={async () => { await api(`/jobs/${j.id}`, { method: 'PATCH', body: { status: 'shortlisted' } }); reload(); }} done="Saved">☆ Save for later</Btn>}
-        {j.status !== 'dismissed' && !j.application && <Btn className="ghost" onClick={async () => { await api(`/jobs/${j.id}`, { method: 'PATCH', body: { status: 'dismissed' } }); window.location.hash = '#/jobs'; }}>Not interested</Btn>}
+
       </div>
 
       <div className="card">

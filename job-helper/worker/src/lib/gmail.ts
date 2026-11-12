@@ -147,6 +147,7 @@ export interface SendInput {
   to: string;
   subject: string;
   text: string;
+  html?: string;
   threadId?: string | null;
   inReplyTo?: string | null;
   attachments?: Attachment[];
@@ -157,7 +158,7 @@ export async function sendEmail(env: Env, m: SendInput): Promise<{ id: string; t
   const g = await getSetting<StoredTokens>(env, 'google');
   if (!g) throw new Error('Gmail is not connected.');
   const from = m.fromName ? `${m.fromName.replace(/[<>"]/g, '')} <${g.email}>` : g.email;
-  const raw = toBase64Url(buildMime({ from, to: m.to, subject: m.subject, text: m.text, inReplyTo: m.inReplyTo, attachments: m.attachments }));
+  const raw = toBase64Url(buildMime({ from, to: m.to, subject: m.subject, text: m.text, html: m.html, inReplyTo: m.inReplyTo, attachments: m.attachments }));
   const sent = await gmail<{ id: string; threadId: string }>(env, '/messages/send', {
     method: 'POST',
     body: JSON.stringify({ raw, ...(m.threadId ? { threadId: m.threadId } : {}) }),

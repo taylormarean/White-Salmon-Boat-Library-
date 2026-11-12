@@ -51,6 +51,10 @@ async function fakeInternet(req: Request): Promise<Response> {
     const q = url.searchParams.get('q') ?? '';
     if (p === '/messages' && q.includes('in:sent')) return j({ messages: [{ id: 'sent1', threadId: 't1' }] });
     if (p === '/messages' && q.includes('has:attachment')) return j({ messages: [{ id: 'att1', threadId: 't2' }] });
+    if (p === '/messages' && q.includes('in:inbox')) return j({ messages: [{ id: 'me1', threadId: 't9' }] });
+    if (p === '/messages/me1') {
+      return j({ id: 'me1', threadId: 't9', internalDate: '1700000000000', payload: { mimeType: 'text/plain', headers: [{ name: 'Subject', value: 'Re: Your job search today — 3 new jobs to vote on' }, { name: 'From', value: 'Linda Example <mom@gmail.com>' }], body: { data: b64url('The cover letters are a bit long, please keep them shorter.\n\nOn Tue, Nov 10 Next Chapter wrote:\n> Good morning') } } });
+    }
     if (p === '/messages') return j({});
     if (p === '/messages/sent1') {
       return j({ id: 'sent1', threadId: 't1', internalDate: '1700000000000', payload: { mimeType: 'text/plain', headers: [{ name: 'Subject', value: 'Catching up' }, { name: 'From', value: 'mom@gmail.com' }], body: { data: b64url('Hi Pam,\n\nIt was so good to see you at the market on Saturday. I have been thinking about getting back to work now that things have settled down, maybe something in an office again.\n\nThanks so much,\nLinda') } } });
@@ -206,6 +210,90 @@ describe('Sign in with Google', () => {
     expect(raw).toContain('filename="Linda_Example_Cover_Letter.docx"');
     const detail = await (await call(`/api/applications/${app.id}`, { token })).json() as { status: string; gmail_thread_id: string; rfc_message_id: string };
     expect(detail).toMatchObject({ status: 'submitted', gmail_thread_id: 'thr-out1', rfc_message_id: '<out1@mail.gmail.com>' });
+  });
+
+  it('the morning email lists jobs to vote on with one-tap buttons that open a confirm page', { timeout: 30_000 }, async () => {
+    const token = tokenFrom(await signIn('mom-full'));
+    const db = await mf.getD1Database('DB');
+    for (const [title, company] of [['Account Executive', 'Acme SaaS'], ['SDR', 'Acme SaaS'], ['Customer Success Manager', 'Beta Cloud']]) {
+      await db.prepare("INSERT INTO jobs (source, external_id, dedupe_key, title, company, work_mode, description, fit_score, fit_label, fit_summary, status) VALUES ('test', ?, ?, ?, ?, 'remote', 'Sell software', 80, 'good', 'Good fit', 'new')")
+        .bind(`${company}-${title}`, `${company}|${title}`, title, company).run();
+    }
+    const home = await (await call('/api/home', { token })).json() as { to_vote: { id: number; title: string }[] };
+    expect(home.to_vote.map((j) => j.title)).toEqual(expect.arrayContaining(['Account Executive', 'SDR', 'Customer Success Manager']));
+
+    const before = sent.length;
+    const r = await (await call('/api/digest/send', { method: 'POST', token })).json() as { subject: string };
+    expect(r.subject).toMatch(/to vote on/);
+    const raw = sent.slice(before).join('');
+    expect(raw).toContain('Content-Type: text/html');
+    const html = Buffer.from(raw.split('Content-Type: text/html; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n')[1].split('\r\n--')[0].replace(/\r\n/g, ''), 'base64').toString('utf8');
+    expect(html).toContain('What I did for you');
+    const cs = home.to_vote.find((j) => j.title === 'Customer Success Manager')!;
+    const card = html.slice(html.indexOf('Customer Success Manager'));
+    const upLink = card.match(/href="(https:\/\/nc\.test\/api\/q\?t=[^"]+)"/)![1].replace(/&amp;/g, '&');
+
+    // Opening the link (or a mail scanner prefetching it) does NOT vote.
+    const page = await call(new URL(upLink).pathname + new URL(upLink).search);
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('Customer Success Manager');
+    expect((await db.prepare('SELECT vote FROM jobs WHERE id = ?').bind(cs.id).first<{ vote: number | null }>())!.vote).toBeNull();
+
+    // Confirming does.
+    const form = new URLSearchParams({ t: new URL(upLink).searchParams.get('t')!, reason: 'role', note: 'Love customer-facing work' });
+    const done = await mf.dispatchFetch(`${ORIGIN}/api/q`, { method: 'POST', body: form, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } } as never);
+    expect(await done.text()).toContain('Thank you');
+    const row = await db.prepare('SELECT vote, vote_reason, status FROM jobs WHERE id = ?').bind(cs.id).first<{ vote: number; vote_reason: string; status: string }>();
+    expect(row).toMatchObject({ vote: 1, status: 'shortlisted' });
+    expect(row!.vote_reason).toContain('Love customer-facing work');
+
+    // A tampered link is refused.
+    const bad = await call('/api/q?t=forged');
+    expect(await bad.text()).toContain('expired');
+  });
+
+  it('👎 "this company" blocks the employer and clears its other jobs', async () => {
+    const token = tokenFrom(await signIn('mom-full'));
+    const home = await (await call('/api/home', { token })).json() as { to_vote: { id: number; title: string }[] };
+    const ae = home.to_vote.find((j) => j.title === 'Account Executive')!;
+    const r = await (await call(`/api/jobs/${ae.id}/vote`, { method: 'POST', token, body: JSON.stringify({ vote: -1, reason: 'company' }) })).json() as { blockedCompany: string };
+    expect(r.blockedCompany).toBe('Acme SaaS');
+    const prefs = await (await call('/api/prefs', { token })).json() as { exclude_companies: string[] };
+    expect(prefs.exclude_companies).toContain('Acme SaaS');
+    const after = await (await call('/api/home', { token })).json() as { to_vote: { title: string }[] };
+    expect(after.to_vote.map((j) => j.title)).not.toContain('SDR'); // same company, gone too
+  });
+
+  it('feedback becomes lessons and settings changes, and it answers her', async () => {
+    const token = tokenFrom(await signIn('mom-full'));
+    const r = await (await call('/api/feedback', { method: 'POST', token, body: JSON.stringify({ sentiment: 'bad', about: 'job_search', text: 'Stop showing me jobs that are mostly cold calling' }) })).json() as { reply: string; changes: string[] };
+    expect(r.reply.length).toBeGreaterThan(5);
+    expect(r.changes.join(' ')).toContain('cold calling');
+    const prefs = await (await call('/api/prefs', { token })).json() as { exclude_keywords: string[] };
+    expect(prefs.exclude_keywords).toContain('cold calling');
+    const l = await (await call('/api/lessons', { token })).json() as { lessons: { job_search: string[] } };
+    expect(l.lessons.job_search.join(' ')).toContain('cold calling');
+  });
+
+  it('replying to the morning email is feedback too', async () => {
+    const token = tokenFrom(await signIn('mom-full'));
+    await call('/api/inbox/sync', { method: 'POST', token });
+    const db = await mf.getD1Database('DB');
+    const fb = await db.prepare("SELECT text, learned FROM feedback WHERE about = 'digest'").first<{ text: string; learned: number }>();
+    expect(fb!.text).toBe('The cover letters are a bit long, please keep them shorter.');
+    expect(fb!.learned).toBe(1);
+  });
+
+  it('a 👍 gets its application written on the next hourly run', { timeout: 30_000 }, async () => {
+    const db = await mf.getD1Database('DB');
+    const cs = await db.prepare("SELECT id FROM jobs WHERE title = 'Customer Success Manager'").first<{ id: number }>();
+    expect(await db.prepare('SELECT 1 FROM applications WHERE job_id = ?').bind(cs!.id).first()).toBeNull();
+    const worker = await mf.getWorker();
+    await worker.scheduled({ cron: '0 * * * *' });
+    // waitUntil work finishes shortly after
+    for (let i = 0; i < 50 && !(await db.prepare('SELECT 1 FROM applications WHERE job_id = ?').bind(cs!.id).first()); i++) await new Promise((r) => setTimeout(r, 100));
+    const app = await db.prepare("SELECT status FROM applications WHERE job_id = ?").bind(cs!.id).first<{ status: string }>();
+    expect(app?.status).toBe('ready');
   });
 
   it('rejects forged or missing sessions', async () => {
