@@ -25,7 +25,7 @@ crons = ["0 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "next-chapter-db"
-database_id = "PASTE_YOUR_D1_ID_HERE"   # `npm run setup` fills this in
+database_id = "75fc236a-b79f-4c1f-9ade-c9d86168fbad"   # next-chapter-db (not a secret: only usable with your Cloudflare login)
 
 [vars]
 APP_URL = "https://nextchapterjobhunter.com"   # the public address: links in emails, Google sign-in, Stripe returns
