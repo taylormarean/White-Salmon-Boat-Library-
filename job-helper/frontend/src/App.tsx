@@ -16,6 +16,8 @@ import Insights from './pages/Insights';
 import Billing from './pages/Billing';
 import Referrals from './pages/Referrals';
 import Admin from './pages/Admin';
+import Help from './pages/Help';
+import SupportChat from './SupportChat';
 import InstallPrompt from './InstallPrompt';
 import { useToast } from './ui';
 
@@ -62,6 +64,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     { href: '#/billing', icon: '💳', label: 'Credit & billing' },
     { href: '#/referrals', icon: '🎁', label: 'Refer & earn' },
     { href: '#/settings', icon: '⚙️', label: 'Settings' },
+    { href: '#/help', icon: '❓', label: 'Help' },
     { href: '#/admin', icon: '📊', label: 'Admin', admin: true },
   ] },
 ];
@@ -111,6 +114,8 @@ export default function App() {
   useEffect(() => setMore(false), [hash]);
 
   if (initial.waitlist && !authed) return <Waitlist />;
+  const hp = (hash.slice(1).split('?')[0] || '/').split('/').filter(Boolean);
+  if (!authed && hp[0] === 'help') return <Help slug={hp[1]} signedIn={false} />;
   if (!authed) return <Landing onSignedIn={() => setAuthed(true)} error={initial.error} />;
 
   const [path, query] = hash.slice(1).split('?');
@@ -128,6 +133,7 @@ export default function App() {
   else if (parts[0] === 'billing') page = <Billing />;
   else if (parts[0] === 'referrals') page = <Referrals />;
   else if (parts[0] === 'admin') page = <Admin />;
+  else if (parts[0] === 'help') page = <Help slug={parts[1]} signedIn />;
   else if (parts[0] === 'settings') page = <Settings query={new URLSearchParams(query ?? '')} me={me} reloadMe={loadMe} />;
   else page = <Today me={me} reloadMe={loadMe} />;
 
@@ -193,6 +199,7 @@ export default function App() {
         {me?.onboarding.done && <InstallPrompt />}
         {page}
       </main>
+      <SupportChat />
     </div>
   );
 }

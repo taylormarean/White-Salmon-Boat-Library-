@@ -88,6 +88,44 @@ export default function Admin() {
       <GlobalCap o={o} onSaved={ov.reload} />
 
       <Users list={us.data} error={us.err?.message ?? null} onChange={reloadAll} />
+
+      <SupportLog />
+    </div>
+  );
+}
+
+type SupportRow = { id: number; question: string; answer: string; helpful: number | null; created_at: string; email: string | null };
+type SupportData = { messages: SupportRow[]; last_30_days: { asked: number; helpful: number; not_helpful: number; people: number } };
+
+/** What people ask the help assistant, and whether the answers helped: shows which articles to write or fix. */
+function SupportLog() {
+  const { data, err } = useAdminLoad<SupportData>('/admin/support');
+  const [onlyBad, setOnlyBad] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  if (err) return <ErrorBox error={err.message} />;
+  if (!data) return <Loading />;
+  const t = data.last_30_days;
+  const rows = data.messages.filter((m) => !onlyBad || m.helpful === 0);
+  return (
+    <div className="card">
+      <div className="section">
+        <h2>Help assistant</h2>
+        <span className="muted small">Last 30 days: {t.asked} questions from {t.people} people · 👍 {t.helpful} · 👎 {t.not_helpful}</span>
+      </div>
+      <label className="small"><input type="checkbox" checked={onlyBad} onChange={(e) => setOnlyBad(e.target.checked)} /> Only answers marked not helpful</label>
+      {rows.length === 0 ? <p className="muted">Nothing here yet.</p> : (
+        <ul className="support-log" style={{ listStyle: 'none', padding: 0, margin: '.75rem 0 0' }}>
+          {rows.map((m) => (
+            <li key={m.id} style={{ borderTop: '1px solid var(--line)', padding: '.6rem 0' }}>
+              <button className="ghost" style={{ textAlign: 'left', width: '100%' }} aria-expanded={open === m.id} onClick={() => setOpen(open === m.id ? null : m.id)}>
+                {m.helpful === 1 ? '👍 ' : m.helpful === 0 ? '👎 ' : ''}<strong>{m.question}</strong>
+                <span className="muted small"> · {m.email ?? 'unknown'} · {new Date(m.created_at.replace(' ', 'T') + 'Z').toLocaleString()}</span>
+              </button>
+              {open === m.id && <p className="small" style={{ whiteSpace: 'pre-wrap', margin: '.4rem 0 0' }}>{m.answer}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

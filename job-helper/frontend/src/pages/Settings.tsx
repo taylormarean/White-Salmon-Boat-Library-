@@ -138,7 +138,7 @@ export default function Settings({ query, me, reloadMe }: { query: URLSearchPara
         <label className="check"><input type="checkbox" checked={p.autopilot.auto_send_follow_ups} onChange={(e) => auto({ auto_send_follow_ups: e.target.checked })} />
           <span>Send follow-up emails without asking me first <span className="hint">They go out on weekdays during business hours. Off means each follow-up waits on the Today page for your OK.</span></span></label>
         <label className="check"><input type="checkbox" checked={p.autopilot.auto_send_applications} onChange={(e) => auto({ auto_send_applications: e.target.checked })} />
-          <span>Send email applications without asking me first <span className="hint">Only for jobs above the fit score above. We recommend leaving this off until you trust the drafts.</span></span></label>
+          <span>Send email applications without asking me first <span className="hint">Only for jobs you gave a 👍 that the app wrote an application for. We recommend leaving this off until you trust the drafts.</span></span></label>
         <p className="small muted">Replies to a real person (like an interview request) always wait for your OK.</p>
         <div className="grid2">
           <div><label>Follow up after <span className="hint">days of silence before each follow-up</span></label>

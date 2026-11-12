@@ -12,6 +12,7 @@ import { businessRoutes } from './business';
 import { adminRoutes } from './admin';
 import { getInsights } from './insights';
 import { careerRoutes } from './career';
+import { supportRoutes } from './support';
 import { handleStripeWebhook, stripeConfigured } from './stripe';
 import { resolveAlerts } from './alerts';
 import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
@@ -579,6 +580,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
     ...businessRoutes(env, user, owner, frontUrl(env, request)),
     ...adminRoutes(env, user),
     ...careerRoutes(env, user, owner),
+    ...supportRoutes(env, user),
   ];
   return dispatch(routes, request, path);
 }

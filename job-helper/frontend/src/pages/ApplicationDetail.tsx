@@ -94,7 +94,7 @@ function NextStep({ a, reload }: { a: AppFull; reload: () => void }) {
       return (
         <div className="card hl no-print">
           <h2>Ready to send ✉️</h2>
-          <p>Look over the resume, cover letter, and email below. When you’re happy, the app sends it from your Gmail with both documents attached as Word files.</p>
+          <p>Look over the resume, cover letter, and email below. When you’re happy, the app sends it from your Gmail with both documents attached (PDF unless you chose Word in Settings).</p>
           <label>Send to</label>
           <div className="row">
             <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ maxWidth: 360 }} />

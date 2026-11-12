@@ -156,6 +156,6 @@ button.vote.down.on { background: var(--bad); color: #fff; }
   .nav .desk, .nav .ws { display: none; }
   .nav .mob { display: flex; width: 100%; justify-content: space-around; }
   .nav .mob a { flex: 1; }
-  .more-sheet { display: flex; flex-direction: column; position: fixed; bottom: 64px; left: .5rem; right: .5rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: .5rem; box-shadow: 0 8px 30px rgba(0,0,0,.15); z-index: 30; }
+  .more-sheet { display: flex; flex-direction: column; position: fixed; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); left: .5rem; right: .5rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: .5rem; box-shadow: 0 8px 30px rgba(0,0,0,.15); z-index: 30; }
   .more-sheet a { flex-direction: row !important; font-size: 1rem !important; gap: .6rem !important; padding: .7rem .8rem !important; }
 }

@@ -10,6 +10,7 @@ import { migrate } from './lib/migrate';
 import { canActIn, getUser } from './accounts';
 import { BillingError } from './billing';
 import { extRoutes } from './ext';
+import { publicHelpRoute } from './support';
 
 export type { Env };
 
@@ -41,12 +42,16 @@ export default {
     const path = url.pathname.replace(/\/$/, '') || '/';
     // One address for everything: www and *.workers.dev redirect to the domain (webhooks excepted).
     const canonical = env.APP_URL ? new URL(env.APP_URL) : null;
-    if (canonical && url.host !== canonical.host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(url.host) && !path.startsWith('/api/webhook/') && request.method === 'GET') {
+    // Skipped in local dev, where `wrangler dev` reports the production host on every request.
+    const dev = env.DEV_LOGIN === '1' || env.MOCK_AI === '1' || /^(localhost|127\.0\.0\.1)(:|$)/.test(canonical?.host ?? '');
+    if (canonical && !dev && url.host !== canonical.host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(url.host) && !path.startsWith('/api/webhook/') && request.method === 'GET') {
       return Response.redirect(`${canonical.origin}${url.pathname}${url.search}`, 301);
     }
     if (!path.startsWith('/api/')) {
       return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
+    const help = publicHelpRoute(path, request.method);
+    if (help) return withHeaders(help, origin);
     try {
       await migrate(env);
       const pub = await publicRoutes(request, env, path);
