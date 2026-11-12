@@ -1,9 +1,11 @@
 // The morning email: what she needs to do (vote on jobs right from the email, review drafts,
 // approve messages) and what the app did for her in the last day. Replying to it = feedback.
 import type { Env } from './env';
-import { getPrefs, getSetting, logActivity } from './lib/db';
+import { getPrefs, getSetting, getConfig, logActivity, U } from './lib/db';
 import { signJwt } from './lib/auth';
-import { gmailStatus, ownerEmail, sendEmail } from './lib/gmail';
+import { gmailStatus, sendEmail } from './lib/gmail';
+import { getUser } from './accounts';
+import { sendSms } from './career';
 
 export interface DigestJob { id: number; title: string; company: string; location: string | null; work_mode: string; salary: string | null; fit_score: number; fit_summary: string | null }
 export interface DigestData {
@@ -118,10 +120,10 @@ export function buildDigest(d: DigestData): { subject: string; text: string; htm
 
 /** One-click vote links. They open a small confirm page (a GET never votes, so link scanners can't). */
 async function voteLinks(env: Env, appUrl: string, jobs: DigestJob[]): Promise<DigestData['voteLinks']> {
-  const owner = ownerEmail(env) ?? '';
+  const owner = await getUser(env, U(env));
   const out: DigestData['voteLinks'] = {};
   for (const j of jobs) {
-    const mk = async (v: 1 | -1) => `${appUrl}/api/q?t=${encodeURIComponent(await signJwt(env, { sub: 0, email: owner, name: '', purpose: `vote:${j.id}:${v}` }, 14 * 86400))}`;
+    const mk = async (v: 1 | -1) => `${appUrl}/api/q?t=${encodeURIComponent(await signJwt(env, { sub: U(env), email: owner?.email ?? '', name: '', purpose: `vote:${j.id}:${v}` }, 14 * 86400))}`;
     out[j.id] = { up: await mk(1), down: await mk(-1) };
   }
   return out;
@@ -129,14 +131,15 @@ async function voteLinks(env: Env, appUrl: string, jobs: DigestJob[]): Promise<D
 
 export async function collectDigest(env: Env): Promise<DigestData> {
   const prefs = await getPrefs(env);
-  const appUrl = ((await getSetting<string>(env, 'app_url')) ?? env.FRONTEND_URL ?? '').replace(/\/$/, '');
-  const one = async (sql: string, ...args: unknown[]) => ((await env.DB.prepare(sql).bind(...args).first<{ n: number }>())?.n ?? 0);
-  const all = async <T>(sql: string, ...args: unknown[]) => (await env.DB.prepare(sql).bind(...args).all<T>()).results;
+  const appUrl = (env.APP_URL ?? (await getConfig<string>(env, 'app_url')) ?? env.FRONTEND_URL ?? '').replace(/\/$/, '');
+  // Every digest query starts its WHERE with "<x>.user_id = ?" — the account id is bound first.
+  const one = async (sql: string, ...args: unknown[]) => ((await env.DB.prepare(sql).bind(U(env), ...args).first<{ n: number }>())?.n ?? 0);
+  const all = async <T>(sql: string, ...args: unknown[]) => (await env.DB.prepare(sql).bind(U(env), ...args).all<T>()).results;
   const DAY = "datetime('now','-1 day')";
 
-  const toVoteTotal = await one("SELECT COUNT(*) AS n FROM jobs WHERE status = 'new' AND vote IS NULL AND fit_score >= ?", prefs.min_fit_to_recommend);
+  const toVoteTotal = await one("SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND status = 'new' AND vote IS NULL AND fit_score >= ?", prefs.min_fit_to_recommend);
   const toVote = await all<DigestJob>(
-    "SELECT id, title, company, location, work_mode, salary, fit_score, fit_summary FROM jobs WHERE status = 'new' AND vote IS NULL AND fit_score >= ? ORDER BY fit_score DESC, found_at DESC LIMIT 8",
+    "SELECT id, title, company, location, work_mode, salary, fit_score, fit_summary FROM jobs WHERE user_id = ? AND status = 'new' AND vote IS NULL AND fit_score >= ? ORDER BY fit_score DESC, found_at DESC LIMIT 8",
     prefs.min_fit_to_recommend,
   );
   const last = await getSetting<{ at: string; report: { found: number; error?: string }[] }>(env, 'last_search');
@@ -149,21 +152,21 @@ export async function collectDigest(env: Env): Promise<DigestData> {
     toVote,
     toVoteTotal,
     voteLinks: await voteLinks(env, appUrl, toVote),
-    ready: await all("SELECT a.id, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'ready' ORDER BY a.updated_at DESC LIMIT 10"),
-    waiting: await all("SELECT o.kind, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id WHERE o.status IN ('pending','failed') ORDER BY o.id DESC LIMIT 10"),
+    ready: await all("SELECT a.id, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.user_id = ? AND a.status = 'ready' ORDER BY a.updated_at DESC LIMIT 10"),
+    waiting: await all("SELECT o.kind, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id WHERE o.user_id = ? AND o.status IN ('pending','failed') ORDER BY o.id DESC LIMIT 10"),
     news: await all(`SELECT j.company, e.summary, e.application_id FROM app_events e JOIN applications a ON a.id = e.application_id JOIN jobs j ON j.id = a.job_id
-      WHERE e.type = 'reply' AND e.created_at >= ${DAY} AND e.summary NOT LIKE 'Application received%' ORDER BY e.id DESC LIMIT 6`),
+      WHERE e.user_id = ? AND e.type = 'reply' AND e.created_at >= ${DAY} AND e.summary NOT LIKE 'Application received%' ORDER BY e.id DESC LIMIT 6`),
     did: {
       seen: recent ? last!.report.reduce((n, r) => n + r.found, 0) : 0,
       sources: recent ? last!.report.filter((r) => !r.error).length : 0,
-      recommended: await one(`SELECT COUNT(*) AS n FROM jobs WHERE found_at >= ${DAY} AND status != 'filtered' AND fit_score >= ?`, prefs.min_fit_to_recommend),
-      screenedOut: await one(`SELECT COUNT(*) AS n FROM jobs WHERE found_at >= ${DAY} AND status = 'filtered'`),
-      drafted: await one(`SELECT COUNT(*) AS n FROM app_events WHERE type = 'drafted' AND created_at >= ${DAY}`),
-      sentApplications: await one(`SELECT COUNT(*) AS n FROM outbox WHERE kind = 'application' AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
-      sentFollowUps: await one(`SELECT COUNT(*) AS n FROM outbox WHERE kind = 'follow_up' AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
-      sentReplies: await one(`SELECT COUNT(*) AS n FROM outbox WHERE kind IN ('reply','thank_you') AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
-      replies: await one(`SELECT COUNT(*) AS n FROM app_events WHERE type = 'reply' AND created_at >= ${DAY}`),
-      closed: await one(`SELECT COUNT(*) AS n FROM app_events WHERE type = 'status' AND summary LIKE 'Closed:%' AND created_at >= ${DAY}`),
+      recommended: await one(`SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND found_at >= ${DAY} AND status != 'filtered' AND fit_score >= ?`, prefs.min_fit_to_recommend),
+      screenedOut: await one(`SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND found_at >= ${DAY} AND status = 'filtered'`),
+      drafted: await one(`SELECT COUNT(*) AS n FROM app_events WHERE user_id = ? AND type = 'drafted' AND created_at >= ${DAY}`),
+      sentApplications: await one(`SELECT COUNT(*) AS n FROM outbox WHERE user_id = ? AND kind = 'application' AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
+      sentFollowUps: await one(`SELECT COUNT(*) AS n FROM outbox WHERE user_id = ? AND kind = 'follow_up' AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
+      sentReplies: await one(`SELECT COUNT(*) AS n FROM outbox WHERE user_id = ? AND kind IN ('reply','thank_you') AND status = 'sent' AND COALESCE(error,'') != 'Done by hand' AND sent_at >= ${DAY}`),
+      replies: await one(`SELECT COUNT(*) AS n FROM app_events WHERE user_id = ? AND type = 'reply' AND created_at >= ${DAY}`),
+      closed: await one(`SELECT COUNT(*) AS n FROM app_events WHERE user_id = ? AND type = 'status' AND summary LIKE 'Closed:%' AND created_at >= ${DAY}`),
     },
     learned: learning && Date.now() - new Date(learning.at).getTime() < 26 * 3600_000 ? { reply: learning.reply, changes: learning.changes } : null,
   };
@@ -176,5 +179,12 @@ export async function sendDigest(env: Env): Promise<{ sent: boolean; subject?: s
   const { subject, text, html } = buildDigest(d);
   await sendEmail(env, { fromName: 'Next Chapter', to: status.email, subject, text, html });
   await logActivity(env, 'digest', `Sent the morning email: ${subject}`);
+  // Optional: one short text a day, only when there's something to do.
+  const owner = await getUser(env, U(env));
+  const todo = d.toVoteTotal + d.ready.length + d.waiting.length + d.news.length;
+  if (owner?.sms_opt_in && owner.phone && todo) {
+    const bits = [d.news.length && `${d.news.length} employer repl${d.news.length === 1 ? 'y' : 'ies'}`, d.toVoteTotal && `${d.toVoteTotal} job${d.toVoteTotal === 1 ? '' : 's'} to vote on`, d.ready.length + d.waiting.length && `${d.ready.length + d.waiting.length} thing${d.ready.length + d.waiting.length === 1 ? '' : 's'} to OK`].filter(Boolean);
+    await sendSms(env, owner.phone, `Next Chapter: ${bits.join(', ')}. ${d.appUrl}`);
+  }
   return { sent: true, subject };
 }

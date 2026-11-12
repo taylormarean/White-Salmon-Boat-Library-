@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { Me } from '../App';
+import { Interviews, Offer } from './AppExtras';
 import { api, download } from '../api';
 import { Btn, ErrorBox, FeedbackBox, Loading, Markdown, MessageCard, meta, MODE, STATUS, StatusBadge, useLoad, useToast, when, type OutboxItem } from '../ui';
 
@@ -12,11 +14,15 @@ interface AppFull {
   events: Event[]; outbox: OutboxItem[];
 }
 
-type Tab = 'resume' | 'cover' | 'email' | 'answers' | 'history';
+type Tab = 'resume' | 'cover' | 'email' | 'answers' | 'interviews' | 'offer' | 'history';
 
-export default function ApplicationDetail({ id }: { id: string }) {
+export default function ApplicationDetail({ id }: { id: string; me?: Me | null }) {
   const { data: a, error, reload } = useLoad<AppFull>(`/applications/${id}`);
   const [tab, setTab] = useState<Tab>('resume');
+  const [autoTab, setAutoTab] = useState(false);
+  useEffect(() => {
+    if (a && !autoTab) { setAutoTab(true); if (a.status === 'interviewing') setTab('interviews'); else if (a.status === 'offer') setTab('offer'); }
+  }, [a, autoTab]);
   if (error) return <ErrorBox error={error} />;
   if (!a) return <Loading />;
   const pending = a.outbox.filter((m) => m.status === 'pending' || m.status === 'failed');
@@ -47,7 +53,7 @@ export default function ApplicationDetail({ id }: { id: string }) {
       {a.ai_notes && ['drafting', 'ready'].includes(a.status) && <div className="notes no-print" style={{ marginBottom: '1rem' }}>💡 <strong>Before you send:</strong> {a.ai_notes}</div>}
 
       <div className="tabs no-print">
-        {([['resume', 'Resume'], ['cover', 'Cover letter'], ['email', 'Email'], ['answers', 'Application questions'], ['history', `History (${a.events.length})`]] as [Tab, string][]).map(([k, label]) => (
+        {([['resume', 'Resume'], ['cover', 'Cover letter'], ['email', 'Email'], ['answers', 'Application questions'], ['interviews', 'Interviews'], ['offer', 'Offer'], ['history', `History (${a.events.length})`]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
@@ -56,6 +62,8 @@ export default function ApplicationDetail({ id }: { id: string }) {
       {tab === 'cover' && <DocEditor a={a} field="cover_letter_md" kind="cover" reload={reload} />}
       {tab === 'email' && <EmailEditor a={a} reload={reload} />}
       {tab === 'answers' && <Answers a={a} reload={reload} />}
+      {tab === 'interviews' && <Interviews appId={a.id} onChange={reload} />}
+      {tab === 'offer' && <Offer appId={a.id} onChange={reload} />}
       {tab === 'history' && <History a={a} reload={reload} />}
 
       {(tab === 'resume' || tab === 'cover' || tab === 'email') && (

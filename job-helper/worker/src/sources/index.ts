@@ -95,6 +95,7 @@ export async function fetchAllSources(env: Env, prefs: Prefs, voice: Voice, tast
         const loc = locationParts(prefs.home_location);
         const result = await aiWebScout<ScoutResult>(env, {
           context: careerContext(voice, prefs, taste),
+          purpose: 'Searching the web for local jobs',
           instructions: scoutInstructions(prefs),
           user: `Find current openings for her near ${prefs.home_location}. Today is ${new Date().toDateString()}.`,
           location: { type: 'approximate', city: loc.city, region: loc.region, country: 'US', timezone: env.TIMEZONE || 'America/Los_Angeles' },

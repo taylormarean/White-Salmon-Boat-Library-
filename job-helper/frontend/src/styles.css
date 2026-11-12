@@ -140,3 +140,22 @@ button.vote.down.on { background: var(--bad); color: #fff; }
 .modal { background: var(--card); border-radius: var(--radius); padding: 1.25rem 1.4rem; width: min(560px, 100%); max-height: 90vh; overflow: auto; }
 .lesson { display: flex; gap: .5rem; align-items: flex-start; padding: .45rem 0; border-bottom: 1px solid var(--line); }
 .lesson:last-child { border-bottom: 0; }
+
+/* ---- shell v2: grouped sidebar, mobile "More", banners */
+.nav .grp { margin-bottom: .6rem; }
+.nav .grp-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .5rem .8rem .2rem; }
+.nav .ws { margin: 0 .3rem .8rem; width: auto; font-size: .9rem; }
+.nav .mob, .more-sheet { display: none; }
+.nav .credit { font-size: .85rem; padding: .3rem 0; display: block; color: var(--brand); text-decoration: none; }
+.nav { overflow-y: auto; }
+.banner { border-radius: 12px; padding: .7rem 1rem; margin-bottom: .75rem; font-size: .95rem; }
+.banner.warn { background: var(--bad-soft); color: #6b2019; }
+.banner.test { background: var(--warn-soft); }
+.banner.info { background: var(--brand-soft); }
+@media (max-width: 760px) {
+  .nav .desk, .nav .ws { display: none; }
+  .nav .mob { display: flex; width: 100%; justify-content: space-around; }
+  .nav .mob a { flex: 1; }
+  .more-sheet { display: flex; flex-direction: column; position: fixed; bottom: 64px; left: .5rem; right: .5rem; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: .5rem; box-shadow: 0 8px 30px rgba(0,0,0,.15); z-index: 30; }
+  .more-sheet a { flex-direction: row !important; font-size: 1rem !important; gap: .6rem !important; padding: .7rem .8rem !important; }
+}

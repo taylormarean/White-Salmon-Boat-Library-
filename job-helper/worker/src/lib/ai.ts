@@ -3,6 +3,7 @@
 // server-side refusal fallbacks, and checks stop_reason before reading content.
 import Anthropic from '@anthropic-ai/sdk';
 import type { Env } from '../env';
+import { guardSpend, recordUsage, type UsageLike } from '../billing';
 
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -43,6 +44,7 @@ function systemBlocks(context: string | undefined, instructions: string): Anthro
 }
 
 export interface JsonCall<T> {
+  purpose?: string; // shows up on her usage/billing page
   context?: string;
   instructions: string;
   user: string | Block[];
@@ -53,7 +55,11 @@ export interface JsonCall<T> {
 }
 
 export async function aiJSON<T>(env: Env, call: JsonCall<T>): Promise<T> {
-  if (env.MOCK_AI === '1') return call.mock();
+  await guardSpend(env);
+  if (env.MOCK_AI === '1') {
+    await recordUsage(env, call.purpose ?? 'ai', model(env), MOCK_USAGE);
+    return call.mock();
+  }
   const stream = client(env).beta.messages.stream({
     model: model(env),
     max_tokens: call.maxTokens ?? 32000,
@@ -64,6 +70,7 @@ export async function aiJSON<T>(env: Env, call: JsonCall<T>): Promise<T> {
     output_config: { effort: call.effort ?? 'medium', format: { type: 'json_schema', schema: call.schema } },
   });
   const msg = await stream.finalMessage();
+  await recordUsage(env, call.purpose ?? 'ai', msg.model, msg.usage as UsageLike);
   checkStop(msg);
   try {
     return JSON.parse(textOf(msg)) as T;
@@ -72,8 +79,12 @@ export async function aiJSON<T>(env: Env, call: JsonCall<T>): Promise<T> {
   }
 }
 
-export async function aiText(env: Env, call: { context?: string; instructions: string; user: string | Block[]; effort?: Effort; maxTokens?: number; mock: () => string }): Promise<string> {
-  if (env.MOCK_AI === '1') return call.mock();
+export async function aiText(env: Env, call: { purpose?: string; context?: string; instructions: string; user: string | Block[]; effort?: Effort; maxTokens?: number; mock: () => string }): Promise<string> {
+  await guardSpend(env);
+  if (env.MOCK_AI === '1') {
+    await recordUsage(env, call.purpose ?? 'ai', model(env), MOCK_USAGE);
+    return call.mock();
+  }
   const stream = client(env).beta.messages.stream({
     model: model(env),
     max_tokens: call.maxTokens ?? 32000,
@@ -84,6 +95,7 @@ export async function aiText(env: Env, call: { context?: string; instructions: s
     output_config: { effort: call.effort ?? 'low' },
   });
   const msg = await stream.finalMessage();
+  await recordUsage(env, call.purpose ?? 'ai', msg.model, msg.usage as UsageLike);
   checkStop(msg);
   return textOf(msg).trim();
 }
@@ -99,13 +111,21 @@ export async function aiWebScout<T>(env: Env, call: {
   location?: Anthropic.Beta.BetaUserLocation;
   saveSchema: Record<string, unknown>;
   mock: () => T;
+  purpose?: string;
+  toolName?: string;
+  maxSearches?: number;
 }): Promise<T | null> {
-  if (env.MOCK_AI === '1') return call.mock();
+  const toolName = call.toolName ?? 'save_jobs';
+  await guardSpend(env);
+  if (env.MOCK_AI === '1') {
+    await recordUsage(env, call.purpose ?? 'web search', model(env), { ...MOCK_USAGE, server_tool_use: { web_search_requests: 3 } });
+    return call.mock();
+  }
   const tools: Anthropic.Beta.BetaToolUnion[] = [
-    { type: 'web_search_20260209', name: 'web_search', max_uses: 10, ...(call.location ? { user_location: call.location } : {}) },
+    { type: 'web_search_20260209', name: 'web_search', max_uses: call.maxSearches ?? 10, ...(call.location ? { user_location: call.location } : {}) },
     {
-      name: 'save_jobs',
-      description: 'Save the job postings you found. Call this exactly once, at the end, with every qualifying posting.',
+      name: toolName,
+      description: toolName === 'save_jobs' ? 'Save the job postings you found. Call this exactly once, at the end, with every qualifying posting.' : 'Save your findings. Call this exactly once, at the end.',
       strict: true,
       input_schema: call.saveSchema as Anthropic.Beta.BetaTool.InputSchema,
     },
@@ -123,8 +143,9 @@ export async function aiWebScout<T>(env: Env, call: {
       messages,
       output_config: { effort: 'medium' },
     }).finalMessage();
+    await recordUsage(env, call.purpose ?? 'web search', msg.model, msg.usage as UsageLike);
     checkStop(msg);
-    const save = msg.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use' && b.name === 'save_jobs');
+    const save = msg.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use' && b.name === toolName);
     if (save) return save.input as T;
     if (msg.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: msg.content });
@@ -132,11 +153,50 @@ export async function aiWebScout<T>(env: Env, call: {
     }
     // Finished without saving — nudge once.
     messages.push({ role: 'assistant', content: msg.content });
-    messages.push({ role: 'user', content: 'Please call save_jobs now with what you found (an empty list is fine).' });
+    messages.push({ role: 'user', content: `Please call ${toolName} now with what you found.` });
   }
   return null;
 }
 
+// Test mode still meters a plausible amount, so billing can be exercised end to end.
+const MOCK_USAGE: UsageLike = { input_tokens: 3000, output_tokens: 800, cache_read_input_tokens: 2000, cache_creation_input_tokens: 0 };
+
 export function pdfBlock(base64: string): Block {
   return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } };
+}
+
+/** A multi-turn conversation (practice role-plays). Returns the assistant's next line. */
+export async function aiChat(env: Env, call: { purpose: string; system: string; messages: { role: 'user' | 'assistant'; content: string }[]; effort?: Effort; maxTokens?: number; mock: () => string; free?: boolean }): Promise<string> {
+  // free: the business pays (e.g. support chat) — works even when the customer is out of credit.
+  await guardSpend(env, { free: call.free });
+  if (env.MOCK_AI === '1') {
+    await recordUsage(env, call.purpose, model(env), MOCK_USAGE, { free: call.free });
+    return call.mock();
+  }
+  const msg = await client(env).beta.messages.stream({
+    model: model(env),
+    max_tokens: call.maxTokens ?? 8000,
+    betas: [FALLBACK_BETA],
+    fallbacks: 'default',
+    system: [{ type: 'text', text: call.system, cache_control: { type: 'ephemeral' } }],
+    messages: call.messages,
+    output_config: { effort: call.effort ?? 'low' },
+  }).finalMessage();
+  await recordUsage(env, call.purpose, msg.model, msg.usage as UsageLike, { free: call.free });
+  checkStop(msg);
+  return textOf(msg).trim();
+}
+
+/** Research with web search, reported through a strict tool (works with citations, unlike JSON mode). */
+export async function aiResearch<T>(env: Env, call: { purpose: string; context?: string; instructions: string; user: string; schema: Record<string, unknown>; toolName: string; maxSearches?: number; mock: () => T }): Promise<T | null> {
+  return aiWebScout<T>(env, {
+    purpose: call.purpose,
+    context: call.context ?? '',
+    instructions: call.instructions,
+    user: call.user,
+    saveSchema: call.schema,
+    mock: call.mock,
+    toolName: call.toolName,
+    maxSearches: call.maxSearches,
+  });
 }

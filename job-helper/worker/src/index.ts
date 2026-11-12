@@ -4,9 +4,12 @@ import { currentUser } from './lib/auth';
 import { error, HttpError } from './lib/http';
 import { AIError } from './lib/ai';
 import { privateRoutes, publicRoutes } from './routes';
-import { runHourly } from './pipeline';
-import { allowedEmails } from './lib/gmail';
+import { runCron } from './pipeline';
+import { runMonthly } from './admin';
 import { migrate } from './lib/migrate';
+import { canActIn, getUser } from './accounts';
+import { BillingError } from './billing';
+import { extRoutes } from './ext';
 
 export type { Env };
 
@@ -22,7 +25,7 @@ function withHeaders(res: Response, origin: string): Response {
   const h = new Headers(res.headers);
   h.set('Access-Control-Allow-Origin', origin);
   h.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  h.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  h.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Api-Key');
   h.set('Access-Control-Expose-Headers', 'Content-Disposition');
   h.set('Vary', 'Origin');
   h.set('X-Content-Type-Options', 'nosniff');
@@ -34,7 +37,13 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = corsOrigin(request, env);
     if (request.method === 'OPTIONS') return withHeaders(new Response(null, { status: 204 }), origin);
-    const path = new URL(request.url).pathname.replace(/\/$/, '') || '/';
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/$/, '') || '/';
+    // One address for everything: www and *.workers.dev redirect to the domain (webhooks excepted).
+    const canonical = env.APP_URL ? new URL(env.APP_URL) : null;
+    if (canonical && url.host !== canonical.host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(url.host) && !path.startsWith('/api/webhook/') && request.method === 'GET') {
+      return Response.redirect(`${canonical.origin}${url.pathname}${url.search}`, 301);
+    }
     if (!path.startsWith('/api/')) {
       return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
@@ -42,15 +51,20 @@ export default {
       await migrate(env);
       const pub = await publicRoutes(request, env, path);
       if (pub) return pub.status === 302 ? pub : withHeaders(pub, origin);
-      const user = await currentUser(request, env);
-      if (!user) return withHeaders(error('Please sign in', 401), origin);
-      // Removing someone from ALLOWED_EMAILS signs them out immediately.
-      const allowed = allowedEmails(env);
-      if (!(allowed.includes(user.email) || (env.DEV_LOGIN === '1' && !allowed.length))) return withHeaders(error('Please sign in', 401), origin);
-      const res = await privateRoutes(request, env, path, user);
+      // Browser helper (extension) — authenticates with its own key.
+      if (path.startsWith('/api/ext/')) return withHeaders(await extRoutes(request, env, path), origin);
+      const session = await currentUser(request, env);
+      const user = session ? await getUser(env, session.sub) : null;
+      if (!session || !user || user.status === 'suspended') return withHeaders(error('Please sign in', 401), origin);
+      if (user.status === 'waitlist') return withHeaders(error('You’re on the waitlist — we’ll email you when there’s room.', 403), origin);
+      // Which workspace: their own, or one they were invited to help with (re-checked every request).
+      const ws = session.ws ?? user.id;
+      if (!(await canActIn(env, user, ws))) return withHeaders(error('Please sign in', 401), origin);
+      const res = await privateRoutes(request, { ...env, uid: ws }, path, user);
       return withHeaders(res ?? error('Not found', 404), origin);
     } catch (e) {
       if (e instanceof HttpError) return withHeaders(error(e.message, e.status), origin);
+      if (e instanceof BillingError) return withHeaders(new Response(JSON.stringify({ error: e.message, billing: e.code }), { status: 402, headers: { 'Content-Type': 'application/json' } }), origin);
       const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
       // AI and Gmail problems are shown to her in plain words; anything else is a generic 500.
@@ -60,6 +74,6 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(migrate(env).then(() => runHourly(env)));
+    ctx.waitUntil(migrate(env).then(() => runCron(env)).then(() => runMonthly(env)));
   },
 };

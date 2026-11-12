@@ -2,7 +2,7 @@
 // Votes act immediately (status, blocked employers) and, with her feedback, are distilled by Claude
 // into short lessons that go into every future fit check, web search, and draft.
 import type { Env } from './env';
-import { getPrefs, getSetting, logActivity, setSetting, type JobRow } from './lib/db';
+import { getPrefs, getSetting, logActivity, setSetting, U, type JobRow } from './lib/db';
 import { aiJSON } from './lib/ai';
 import { LESSONS_INSTRUCTIONS, LESSONS_SCHEMA, lessonsMock, NO_LESSONS, type Lessons, type LessonsResult, type Taste } from './lib/prompts';
 import { normalize, truncate } from './lib/text';
@@ -33,8 +33,8 @@ export async function getLessons(env: Env): Promise<Lessons> {
 export async function getTaste(env: Env): Promise<Taste> {
   const lessons = await getLessons(env);
   const { results } = await env.DB.prepare(
-    'SELECT title, company, location, work_mode, salary, vote, vote_reason FROM jobs WHERE vote IS NOT NULL ORDER BY voted_at DESC LIMIT 60',
-  ).all<{ title: string; company: string; location: string | null; work_mode: string; salary: string | null; vote: number; vote_reason: string | null }>();
+    'SELECT title, company, location, work_mode, salary, vote, vote_reason FROM jobs WHERE user_id = ? AND vote IS NOT NULL ORDER BY voted_at DESC LIMIT 60',
+  ).bind(U(env)).all<{ title: string; company: string; location: string | null; work_mode: string; salary: string | null; vote: number; vote_reason: string | null }>();
   const fmt = (j: (typeof results)[number]) =>
     `${j.title} — ${j.company} (${[j.work_mode, j.location, j.salary].filter(Boolean).join(', ')})${j.vote_reason ? ` — “${truncate(j.vote_reason, 160)}”` : ''}`;
   return {
@@ -53,11 +53,11 @@ export function describeVote(v: VoteInput): string {
 
 /** Record her 👍/👎. Returns what changed so the UI can tell her. */
 export async function voteJob(env: Env, jobId: number, v: VoteInput): Promise<{ blockedCompany: string | null; withdrew: boolean }> {
-  const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(jobId).first<JobRow>();
+  const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ? AND user_id = ?').bind(jobId, U(env)).first<JobRow>();
   if (!job) throw new Error('Job not found');
   const reason = describeVote(v).slice(0, 1000) || null;
   const status = v.vote > 0 ? (job.status === 'applying' ? 'applying' : 'shortlisted') : 'dismissed';
-  await env.DB.prepare("UPDATE jobs SET vote = ?, vote_reason = ?, voted_at = datetime('now'), status = ? WHERE id = ?").bind(v.vote, reason, status, jobId).run();
+  await env.DB.prepare("UPDATE jobs SET vote = ?, vote_reason = ?, voted_at = datetime('now'), status = ? WHERE id = ? AND user_id = ?").bind(v.vote, reason, status, jobId, U(env)).run();
 
   let blockedCompany: string | null = null;
   let withdrew = false;
@@ -68,30 +68,30 @@ export async function voteJob(env: Env, jobId: number, v: VoteInput): Promise<{ 
       if (!prefs.exclude_companies.some((c) => normalize(c) === normalize(job.company))) {
         await setSetting(env, 'prefs', { ...prefs, exclude_companies: [...prefs.exclude_companies, job.company] });
       }
-      await env.DB.prepare("UPDATE jobs SET status = 'dismissed' WHERE status = 'new' AND vote IS NULL AND lower(company) = lower(?)").bind(job.company).run();
+      await env.DB.prepare("UPDATE jobs SET status = 'dismissed' WHERE user_id = ? AND status = 'new' AND vote IS NULL AND lower(company) = lower(?)").bind(U(env), job.company).run();
       blockedCompany = job.company;
     }
     // A draft she hasn't sent yet for a job she now dislikes is withdrawn.
-    const res = await env.DB.prepare("UPDATE applications SET status = 'withdrawn', closed_reason = 'She gave the job a thumbs-down', updated_at = datetime('now') WHERE job_id = ? AND status IN ('drafting','ready')").bind(jobId).run();
+    const res = await env.DB.prepare("UPDATE applications SET status = 'withdrawn', closed_reason = 'She gave the job a thumbs-down', updated_at = datetime('now') WHERE job_id = ? AND user_id = ? AND status IN ('drafting','ready')").bind(jobId, U(env)).run();
     withdrew = (res.meta.changes ?? 0) > 0;
   }
   return { blockedCompany, withdrew };
 }
 
 export async function addFeedback(env: Env, f: { sentiment: 'good' | 'bad' | 'note'; about?: string; application_id?: number | null; context?: string | null; text: string }): Promise<number> {
-  const res = await env.DB.prepare('INSERT INTO feedback (sentiment, about, application_id, context, text) VALUES (?, ?, ?, ?, ?)')
-    .bind(f.sentiment, f.about ?? 'general', f.application_id ?? null, f.context ? truncate(f.context, 2500) : null, f.text.trim().slice(0, 4000)).run();
+  const res = await env.DB.prepare('INSERT INTO feedback (user_id, sentiment, about, application_id, context, text) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(U(env), f.sentiment, f.about ?? 'general', f.application_id ?? null, f.context ? truncate(f.context, 2500) : null, f.text.trim().slice(0, 4000)).run();
   return res.meta.last_row_id as number;
 }
 
 /** Is there anything new to learn from? (unlearned feedback, or a few votes since the last update) */
 export async function learningPending(env: Env): Promise<boolean> {
-  const fb = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE learned = 0').first<{ n: number }>();
+  const fb = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE user_id = ? AND learned = 0').bind(U(env)).first<{ n: number }>();
   if (fb?.n) return true;
   const lessons = await getLessons(env);
   const votes = await env.DB.prepare(
-    lessons.updated_at ? 'SELECT COUNT(*) AS n FROM jobs WHERE vote IS NOT NULL AND voted_at > ?' : 'SELECT COUNT(*) AS n FROM jobs WHERE vote IS NOT NULL AND ? IS NULL',
-  ).bind(lessons.updated_at ? lessons.updated_at.replace('T', ' ').slice(0, 19) : null).first<{ n: number }>();
+    lessons.updated_at ? 'SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND vote IS NOT NULL AND voted_at > ?' : 'SELECT COUNT(*) AS n FROM jobs WHERE user_id = ? AND vote IS NOT NULL AND ? IS NULL',
+  ).bind(U(env), lessons.updated_at ? lessons.updated_at.replace('T', ' ').slice(0, 19) : null).first<{ n: number }>();
   return (votes?.n ?? 0) >= 3;
 }
 
@@ -99,12 +99,12 @@ export async function learningPending(env: Env): Promise<boolean> {
 export async function learnFromFeedback(env: Env): Promise<{ reply: string; lessons: Lessons; changes: string[] }> {
   const current = await getLessons(env);
   const prefs = await getPrefs(env);
-  const { results: fb } = await env.DB.prepare('SELECT * FROM feedback WHERE learned = 0 ORDER BY id LIMIT 40')
-    .all<{ id: number; sentiment: string; about: string; context: string | null; text: string; created_at: string }>();
+  const { results: fb } = await env.DB.prepare('SELECT * FROM feedback WHERE user_id = ? AND learned = 0 ORDER BY id LIMIT 40')
+    .bind(U(env)).all<{ id: number; sentiment: string; about: string; context: string | null; text: string; created_at: string }>();
   const since = current.updated_at ? current.updated_at.replace('T', ' ').slice(0, 19) : '1970-01-01';
   const { results: votes } = await env.DB.prepare(
-    'SELECT title, company, location, work_mode, salary, vote, vote_reason FROM jobs WHERE vote IS NOT NULL AND voted_at > ? ORDER BY voted_at DESC LIMIT 60',
-  ).bind(since).all<{ title: string; company: string; location: string | null; work_mode: string; salary: string | null; vote: number; vote_reason: string | null }>();
+    'SELECT title, company, location, work_mode, salary, vote, vote_reason FROM jobs WHERE user_id = ? AND vote IS NOT NULL AND voted_at > ? ORDER BY voted_at DESC LIMIT 60',
+  ).bind(U(env), since).all<{ title: string; company: string; location: string | null; work_mode: string; salary: string | null; vote: number; vote_reason: string | null }>();
 
   const user = [
     `<current_lessons>\n${JSON.stringify({ writing: current.writing, job_search: current.job_search, process: current.process }, null, 1)}\n</current_lessons>`,
@@ -114,7 +114,7 @@ export async function learnFromFeedback(env: Env): Promise<{ reply: string; less
   ].filter(Boolean).join('\n\n');
 
   const r = await aiJSON<LessonsResult>(env, {
-    instructions: LESSONS_INSTRUCTIONS, user, schema: LESSONS_SCHEMA, effort: 'medium', maxTokens: 16000, mock: () => lessonsMock(fb),
+    purpose: 'Learning from feedback', instructions: LESSONS_INSTRUCTIONS, user, schema: LESSONS_SCHEMA, effort: 'medium', maxTokens: 16000, mock: () => lessonsMock(fb),
   });
   const lessons: Lessons = {
     writing: r.writing.slice(0, 12), job_search: r.job_search.slice(0, 12), process: r.process.slice(0, 12), updated_at: new Date().toISOString(),
@@ -139,7 +139,7 @@ export async function learnFromFeedback(env: Env): Promise<{ reply: string; less
   }
   if (changes.length) await setSetting(env, 'prefs', next);
 
-  if (fb.length) await env.DB.prepare(`UPDATE feedback SET learned = 1 WHERE id IN (${fb.map(() => '?').join(',')})`).bind(...fb.map((f) => f.id)).run();
+  if (fb.length) await env.DB.prepare(`UPDATE feedback SET learned = 1 WHERE user_id = ? AND id IN (${fb.map(() => '?').join(',')})`).bind(U(env), ...fb.map((f) => f.id)).run();
   await setSetting(env, 'last_learning', { at: lessons.updated_at, reply: r.reply_to_her, changes, feedback: fb.length, votes: votes.length });
   await logActivity(env, 'learn', `Learned from ${fb.length} feedback note${fb.length === 1 ? '' : 's'} and ${votes.length} job vote${votes.length === 1 ? '' : 's'}${changes.length ? ` — ${changes.join('; ')}` : ''}`);
   return { reply: r.reply_to_her, lessons, changes };

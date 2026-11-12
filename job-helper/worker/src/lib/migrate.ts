@@ -1,31 +1,13 @@
-// Brings an existing database up to date (schema.sql creates new ones). Idempotent; runs once per isolate.
+// Database version check. v2 (multi-account) changed the shape of most tables, so a v1 database is
+// rebuilt by `npm run setup` (which asks first) rather than altered in place.
 import type { Env } from '../env';
 
-const STEPS = [
-  'ALTER TABLE jobs ADD COLUMN vote INTEGER',
-  'ALTER TABLE jobs ADD COLUMN vote_reason TEXT',
-  'ALTER TABLE jobs ADD COLUMN voted_at TEXT',
-  `CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sentiment TEXT NOT NULL CHECK (sentiment IN ('good','bad','note')),
-    about TEXT NOT NULL DEFAULT 'general',
-    application_id INTEGER,
-    context TEXT,
-    text TEXT NOT NULL,
-    learned INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
-];
-
-let done = false;
+let checked = false;
 export async function migrate(env: Env): Promise<void> {
-  if (done) return;
-  for (const sql of STEPS) {
-    try {
-      await env.DB.prepare(sql).run();
-    } catch (e) {
-      if (!/duplicate column|already exists/i.test(String(e))) throw e;
-    }
+  if (checked) return;
+  const cols = (await env.DB.prepare("SELECT name FROM pragma_table_info('settings')").all<{ name: string }>()).results.map((c) => c.name);
+  if (cols.length && !cols.includes('user_id')) {
+    throw new Error('This database is from the single-user version of Next Chapter. Run `npm run setup` to upgrade it.');
   }
-  done = true;
+  checked = true;
 }

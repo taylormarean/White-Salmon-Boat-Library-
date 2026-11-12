@@ -7,7 +7,8 @@ import { buildMime } from '../src/lib/mime';
 import { parseAdzuna, parseGreenhouse, parseHimalayas, parseLever, parseRemoteOK, parseRemotive, parseRss, parseUsaJobs } from '../src/sources/parsers';
 import { markdownToDocxBase64 } from '../src/lib/docx';
 import { docxToText } from '../src/lib/unzip';
-import { allowedEmails, authUrl, ownerEmail } from '../src/lib/gmail';
+import { authUrl } from '../src/lib/gmail';
+import { adminEmails, freeEmails } from '../src/accounts';
 import type { Env } from '../src/env';
 import { buildDigest, type DigestData } from '../src/digest';
 
@@ -172,21 +173,26 @@ describe('Word export', () => {
 });
 
 describe('Google sign-in', () => {
-  const env = { ALLOWED_EMAILS: ' Mom@Gmail.com, kid@example.com ', GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 's' } as unknown as Env;
-  it('first allowed address is the job seeker', () => {
-    expect(allowedEmails(env)).toEqual(['mom@gmail.com', 'kid@example.com']);
-    expect(ownerEmail(env)).toBe('mom@gmail.com');
+  const env = { ADMIN_EMAILS: 'Me@Example.com', FREE_EMAILS: ' Mom@Gmail.com ', GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 's' } as unknown as Env;
+  it('reads admin and comped (free) accounts from the configured lists', () => {
+    expect(adminEmails(env)).toEqual(['me@example.com']);
+    expect(freeEmails(env)).toEqual(['mom@gmail.com']);
+    // v1 installs: first ALLOWED_EMAILS address was the job seeker (comped), the rest were helpers (now admins)
+    const legacy = { ALLOWED_EMAILS: 'mom@gmail.com, kid@example.com' } as unknown as Env;
+    expect(freeEmails(legacy)).toEqual(['mom@gmail.com']);
+    expect(adminEmails(legacy)).toEqual(['kid@example.com']);
   });
-  it('asks her for Gmail access, but helpers only for their name and email', () => {
+  it('asks job seekers for Gmail + Calendar, but helpers only for their name and email', () => {
     const owner = new URL(authUrl(env, 'https://app.example', 'st', 'owner'));
     expect(owner.searchParams.get('scope')).toContain('gmail.send');
     expect(owner.searchParams.get('scope')).toContain('gmail.readonly');
+    expect(owner.searchParams.get('scope')).toContain('calendar.events');
     expect(owner.searchParams.get('access_type')).toBe('offline');
     expect(owner.searchParams.get('redirect_uri')).toBe('https://app.example/api/google/callback');
-    expect(owner.searchParams.get('login_hint')).toBe('mom@gmail.com');
     const helper = new URL(authUrl(env, 'https://app.example', 'st', 'helper'));
     expect(helper.searchParams.get('scope')).toBe('openid email profile');
-    expect(helper.searchParams.get('login_hint')).toBeNull();
+    const connect = new URL(authUrl(env, 'https://app.example', 'st', 'connect', 'mom@gmail.com'));
+    expect(connect.searchParams.get('login_hint')).toBe('mom@gmail.com');
   });
 });
 

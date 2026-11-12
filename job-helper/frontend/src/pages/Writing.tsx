@@ -7,7 +7,7 @@ interface Voice { voice_guide: string; career_record: string; open_questions: st
 
 const KINDS: Record<string, string> = { resume: 'Resume', cover_letter: 'Cover letter', email: 'Email', writing_sample: 'Other writing', reference: 'Reference letter', other: 'Other' };
 
-function guessKind(name: string): string {
+export function guessKind(name: string): string {
   const n = name.toLowerCase();
   if (/resume|résumé|cv/.test(n)) return 'resume';
   if (/cover/.test(n)) return 'cover_letter';
@@ -16,7 +16,7 @@ function guessKind(name: string): string {
   return 'writing_sample';
 }
 
-async function fileToText(file: File): Promise<{ content?: string; pdf_base64?: string }> {
+export async function fileToText(file: File): Promise<{ content?: string; pdf_base64?: string }> {
   const name = file.name.toLowerCase();
   if (name.endsWith('.pdf')) {
     const buf = new Uint8Array(await file.arrayBuffer());

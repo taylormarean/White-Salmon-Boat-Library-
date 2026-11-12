@@ -1,142 +1,158 @@
-# 🌱 Next Chapter — a job search helper for Mom
+# 🌱 Next Chapter — AI job-search partner
 
-A private web app that does most of the job hunt for her. She opens one link and taps **Sign in with Google**. That single step signs her in and connects her Gmail. The app then sets itself up:
-- reads emails she has written, to learn how she sounds
-- finds resumes and cover letters she has emailed before
-- learns her work history
-- fills in her search settings
-- runs the first job search
+**https://nextchapterjobhunter.com**
 
-After that:
+Next Chapter does the busywork of a job search in the job seeker's own voice. The person stays in control: by default nothing is sent until they approve it. It started as a tool for one person moving into tech sales and is now a pay-as-you-go service anyone can sign up for.
 
-1. **Holds her documents and learns her voice.** Resumes, cover letters, emails, and other writing (Word, PDF, text, or straight from her Gmail). Claude builds a **career record** (the only facts drafts may use) and a **voice guide** (how she actually writes). Her edits to drafts are kept as examples.
-2. **Finds jobs every morning, starting with tech sales.** Default targets:
-   - roles: SDR/BDR, Account Executive, Account Manager, Customer Success, and Inside Sales
-   - employers: software, SaaS, and tech companies, remote or nearby
-   
-   She can change all of this in Settings. Sources are remote boards (Remotive, RemoteOK, Himalayas), local search (Adzuna, USAJobs), an **AI web scout** for local listings, Greenhouse/Lever careers pages, and RSS feeds. Claude scores each job 0–100 against her record, her wishes, and everything she's taught it. Only jobs above her bar (60 by default) are recommended; the rest are screened out but still viewable.
-3. **Every recommended job needs her 👍 or 👎.** She votes in the app or straight from the morning email. A reason is optional (e.g. "Not the kind of work I want", "Pay too low", "Don't want this company").
-   - Her votes and reasons go into every later fit check, so she sees fewer jobs like the ones she passed on.
-   - "Don't want this company" blocks that employer for good.
-   - Applications are only written for jobs she likes. A 👍 gets a draft within the hour.
-4. **Learns from her feedback.** There are 👍/👎 buttons and a note on every draft, message, and job, a "How am I doing?" box, and she can simply reply to the morning email. Claude turns all of it into short **lessons** and follows them every time it writes, scores, or searches. Lessons fall into three groups:
-   - which jobs to show her
-   - how to write for her
-   - how to work with her
-   
-   When she's explicit, it also updates her settings, e.g. "Stop showing me cold-calling jobs" adds an excluded keyword. She can read, add, and delete lessons on the **Learning** page.
-5. **Writes a tailored resume, cover letter, email, and form answers for each job**, in her voice. Downloads as Word files or prints to PDF. She can ask for changes in plain words. A request like "make it warmer" applies to all future drafts too, not just this one.
-6. **Submits and follows up.**
-   - **Email applications:** sends from her Gmail with the files attached.
-   - **Website applications:** a checklist plus an "I submitted it" button.
-   - **Follow-ups:** drafted after 7, then 10 more days of silence, threaded under the original.
-7. **Tracks every application until it's won or closed.** It reads her inbox for employer replies and files each with the right application, even from no-reply applicant-tracking systems. It classifies the reply, moves the application along, and drafts a response when one is needed.
-8. **Emails her every morning** with:
-   - **what she needs to do**: new jobs to vote on (with one-tap 👍/👎 buttons), drafts to look over, messages to OK
-   - **what it did for her**: listings searched, jobs recommended and skipped, applications written and sent, follow-ups, replies noticed, applications closed
-   - **what it learned from her lately**
-   
-   Replying to the email is feedback.
+## What it does
 
-## Safety: what it will and won't do on its own
+**Getting set up**
+- **Sign in with Google.** One consent screen covers sign-in, Gmail (send + read) and Google Calendar (create interview events and check free/busy times).
+- **Guided onboarding:**
+  - upload a resume and other documents, or let it read Gmail for sent emails and past resumes
+  - answer questions about skills, experience, the roles and industries they want, remote/hybrid/in-person, location and travel radius, base pay and OTE, schedule, start date and dealbreakers
+  - Claude then asks follow-up questions based on the documents
+- **What it builds from that:**
+  - a **career record**: the only facts drafts may use
+  - a **voice guide**: how they write
+  - a **career-change story**: also used for a LinkedIn rewrite (headline, About, experience) and certification suggestions
+
+**Finding jobs**
+- **Daily search.** Sources:
+  - remote boards: Remotive, RemoteOK, Himalayas
+  - local: Adzuna, USAJobs
+  - company career pages on Greenhouse and Lever, plus RSS feeds
+  - a Claude web-search scout for small-town listings
+- **Tech sales by default.** It starts with SDR/BDR, AE, Account Manager, Customer Success and Inside Sales roles at software/SaaS companies. Any field works.
+- **Fit scoring.** Each job gets a 0–100 score with reasons, gaps and scam flags. Jobs below the user's bar are screened out.
+- **Learning their taste.** **Every recommendation needs their 👍 or 👎**, from the app or one tap in the morning email. Votes and reasons feed every later fit check, and "don't want this company" blocks that employer.
+- **Company checks.** Before drafting, it looks up the company (funding, layoffs, rep reviews, pay realism) and checks the posting is still open.
+
+**Applying**
+- **Tailored drafts** for each job the user 👍s: resume, cover letter, email and form answers in their voice, as PDF and/or Word.
+- **Email applications** go out from their Gmail after they approve them (optional autopilot).
+- **Website forms:** the **browser helper** (Chrome extension, [extension/](extension/)) fills in company application forms. The user checks everything and presses Submit.
+- **Test week.** For the first 7 days, everything the app "sends" goes to the user's own inbox first.
+
+**Following through**
+- **Follow-ups** after 7, then 10, days of silence, threaded in the original email.
+- **Replies.** It reads replies and files each one with the right application, including emails from applicant-tracking systems. It classifies the reply and drafts a response that offers times from their **Google Calendar**.
+- **Tracking.** Every application is tracked until hired or closed.
+- **Interviews and offers:**
+  - prep sheets (company research, likely questions, STAR stories from their record, questions to ask) and calendar events
+  - **practice role-plays** with a scorecard (cold call, discovery, objections, "sell me this", hiring manager), with voice where the browser supports it
+  - thank-you notes after interviews
+  - hiring-manager outreach notes for LinkedIn
+  - offer review with a drafted negotiation email
+
+**Staying in the loop**
+- **Morning email:** what to do, plus what the app did for them. Optional daily text, a weekly progress summary and a Progress page.
+- **Feedback.** Their feedback on anything (including replies to the morning email) becomes **lessons** that every prompt follows. The **What I've learned** page shows them and lets them edit them.
+- **Helpers.** They can invite family helpers.
+- **Alerts.** If something breaks (Gmail disconnected, out of credit, nothing happening for days), the person and their helpers get an alert.
+- **Help.** There's a help center and a support chatbot. The chatbot is free to use and knows the help articles.
+
+## The business
+
+- **Pricing: prepaid credit.** Each Claude call is metered (tokens, cache and web searches, priced per model in [billing.ts](worker/src/billing.ts)). The customer is charged `PRICE_MULTIPLIER` (2) × the AI cost. Credit is bought with Stripe Checkout in $10/$25/$50/$100 packs.
+- **Spending limits.** Customers can set a monthly limit. The admin sets a **business-wide monthly AI cap** that pauses all AI work when reached.
+- **Comped accounts.** Accounts in `FREE_EMAILS` (e.g. the founder's mom) are free, and the business pays their AI cost.
+- **Referrals (one level only).** Everyone gets a referral link. When a referred person uses the app, the referrer earns `REFERRAL_SHARE` (50%) of the profit (charge − AI cost). People who sign up on their own leave 100% with the business.
+  - **Payouts:** monthly in cash through **Stripe Connect Express**, after a 30-day hold, once the balance reaches $25.
+  - **No earnings from recruiting itself:** a referrer earns only from the usage of the people they referred, never from signing people up.
+- **Admin dashboard** (`#/admin`): credit sold, usage charged, AI cost, comped cost, referral earned/paid, profit, users, waitlist, the global cap, per-user comp/credit/cap/suspend, run payouts, and the support-chat log.
+- **Beta cap.** While Google hasn't verified the app, at most `MAX_USERS` (100) accounts are active; later sign-ups join a waitlist the admin can approve.
+
+> **Before launch:** have a lawyer review the Terms, the Privacy Policy, the referral program (FTC rules, state laws, tax forms for referral payouts) and income-related wording. To open Gmail access to more than 100 users, Google requires app verification **and an annual CASA security assessment** (because the app reads Gmail).
+
+## Safety defaults
 
 | Action | Default |
 |---|---|
-| Search, screen, check fit | Automatic, daily |
-| Recommend jobs | Only above her fit bar; **each needs her 👍 or 👎** |
-| Write an application | Only for jobs she gave a 👍 (automatic within the hour, can be turned off) |
-| Send an application email | **Waits for her OK.** Optional autopilot in Settings. |
-| Send a follow-up | **Waits for her OK.** Optional autopilot, weekdays 8am–5pm only. |
-| Reply to a person (interview request, question) | **Always waits for her OK.** No setting changes this. |
-| Fill in a company's website application form | Never. She submits those herself (see below). |
+| Search, screen, score, research companies | Automatic |
+| Recommend a job | Only above the fit bar; **each needs a 👍/👎** |
+| Write an application | Only for 👍 jobs (automatic, can be turned off) |
+| Send an application or follow-up email | **Waits for approval** (optional autopilot); first week goes to their own inbox |
+| Reply to a person (interview, offer, question) | **Always waits for approval** |
+| Website application forms | The browser helper fills them in; **the user presses Submit** |
 
-- **Honesty:** every prompt tells Claude it may not invent or inflate employers, dates, titles, degrees, licenses, numbers, or skills. Each draft includes a "Before you send" note listing anything she should double-check.
-- **One-tap votes from email:** the 👍/👎 links are signed and expire after 14 days. They open a small confirm page, so mail scanners that pre-open links can't vote for her.
-- **Scam screening:** postings that ask for money, gift cards, or bank or SSN details before an interview are flagged and scored ≤ 15.
-- **Prompt injection:** job postings and employer emails are passed to Claude as clearly marked outside content, so text in them is treated as information, not instructions.
-- **Who can sign in:** only the Google accounts in the `ALLOWED_EMAILS` secret. The first address is the job seeker; anyone else listed is a helper. Helpers sign in through a separate link that asks Google for name and email only, never Gmail. If a helper uses her button by mistake, the Gmail access they granted is handed straight back. Removing an address from the list signs that person out immediately.
-- **Gmail token:** encrypted at rest (AES-GCM). It uses only the `gmail.send` and `gmail.readonly` scopes, so the app can't delete or change anything in her mailbox. Only her own Gmail can be connected.
-
-### Why it doesn't auto-fill website applications
-
-LinkedIn, Indeed, Workday, and most applicant-tracking systems forbid automated submissions in their terms. Many also use CAPTCHAs, and the forms make the applicant swear the answers are true. A bot that fills them in breaks easily and can get her account flagged. So for those jobs the app does everything except the final click: tailored files, drafted answers, the link, and tracking afterward. Email applications, which many small local employers still use, are fully automated.
+- **Honesty.** Drafts may only use facts from the career record and onboarding answers. Each draft lists anything to double-check.
+- **Prompt injection.** Job postings, web pages and employer emails are marked as outside content in every prompt.
+- **Gmail token.** Encrypted at rest (AES-GCM). Only send/read scopes are used, so nothing in the mailbox can be deleted or changed. Google-API data use follows Google's Limited Use policy (see `/privacy.html`).
+- **Privacy between accounts.** Every row of personal data carries an account id and every query filters by it. Helpers only see the workspaces that invited them, re-checked on every request. Tests cover cross-account access.
 
 ## Architecture
 
 | Part | Tech | Path |
 |---|---|---|
-| API + scheduler | Cloudflare Worker (TypeScript), hourly cron | [worker/](worker/) |
-| Database | Cloudflare D1 (SQLite) | [worker/schema.sql](worker/schema.sql) |
-| AI | Claude API via `@anthropic-ai/sdk` (structured outputs, web search tool, prompt caching, refusal fallbacks) | [worker/src/lib/ai.ts](worker/src/lib/ai.ts), [prompts.ts](worker/src/lib/prompts.ts) |
-| Sign-in + email | Google OAuth: one consent covers sign-in and Gmail | [worker/src/lib/gmail.ts](worker/src/lib/gmail.ts) |
-| Web app | React + Vite, served by the same Worker (one address), works on a phone | [frontend/](frontend/) |
+| API, scheduler, web app hosting | Cloudflare Worker (TypeScript) + static assets, hourly cron | [worker/](worker/) |
+| Database | Cloudflare D1 (SQLite), schema v2 (multi-account) | [worker/schema.sql](worker/schema.sql) |
+| AI | Claude API (`@anthropic-ai/sdk`): structured outputs, web search, prompt caching, refusal fallbacks; every call metered | [worker/src/lib/ai.ts](worker/src/lib/ai.ts), [billing.ts](worker/src/billing.ts) |
+| Sign-in, email, calendar | Google OAuth, Gmail API, Calendar API | [worker/src/lib/gmail.ts](worker/src/lib/gmail.ts), [calendar.ts](worker/src/lib/calendar.ts) |
+| Payments | Stripe Checkout + webhooks, Connect Express payouts | [worker/src/stripe.ts](worker/src/stripe.ts) |
+| System email / texts | Resend / Twilio (optional) | [worker/src/alerts.ts](worker/src/alerts.ts), [career.ts](worker/src/career.ts) |
+| Web app | React + Vite, installable on phones (PWA) | [frontend/](frontend/) |
+| Browser helper | Chrome extension (MV3), never submits | [extension/](extension/) |
+| Help center articles | Shared by the app and the support chatbot | [shared/help-articles.ts](shared/help-articles.ts) |
 
-The hourly cron sends approved messages, checks Gmail for replies, and drafts or closes follow-ups. Once a day, at her chosen hour, it also runs the job search and sends the morning summary.
+The hourly cron works through every active account inside a time budget. For each account it:
+- sends approved messages
+- reads replies
+- drafts follow-ups
+- learns from new feedback
+- drafts applications for 👍 jobs
+- runs the daily search at the account's chosen hour, then sends the morning email
+- raises and sends alerts
 
-## Setup (about 20 minutes, one time)
+Payouts run on the 1st of each month. Weekly summaries go out on Mondays.
+
+## Setup
 
 You need:
-- a computer with [Node.js 20+](https://nodejs.org/)
-- a free Cloudflare account (the script helps you make one)
-- your Claude API key from <https://console.anthropic.com/settings/keys>
-- a Google account, used to create the "Sign in with Google" keys
+- [Node.js 20+](https://nodejs.org/)
+- a free Cloudflare account, with **nextchapterjobhunter.com** added to it
+- a Claude API key from https://console.anthropic.com
+- a Google Cloud project for sign-in
+- optional: Stripe (payments and payouts), Resend (system email), Twilio (texts), Adzuna and USAJobs (more local jobs)
 
 ```bash
-git clone <this repo> && cd <repo>/job-helper/worker
+git clone https://github.com/taylormarean/White-Salmon-Boat-Library-.git
+cd White-Salmon-Boat-Library-
+git checkout claude/relaxed-newton-2btiuy
+cd job-helper/worker
 npm install
 npm run setup
 ```
 
-The script walks you through everything:
-1. Logs you in to Cloudflare. A browser window opens.
-2. Creates the database and its tables.
-3. Builds the web app and publishes it. It prints the address, e.g. `https://next-chapter.<you>.workers.dev`.
-4. Asks for your **Claude API key**. The key is hidden as you paste it. It's stored as an encrypted Cloudflare secret and never written to a file.
-5. Asks for **your mom's Gmail address**, plus yours if you want to help. Only these accounts can sign in.
-6. Shows the exact Google Cloud Console steps for the sign-in keys, with the redirect address already filled in. Then it asks for the client ID and secret.
-7. Optionally asks for free Adzuna and USAJobs keys, for more local and government job listings.
-
-Then send her the address. To update the app later, pull the new code and run `npm run setup` again. It skips anything that's already done.
-
-### The Google step, in a little more detail
-
-The script prints these with links. Do them in the [Google Cloud Console](https://console.cloud.google.com/):
-1. Create a project and enable the **Gmail API**.
-2. Under **Google Auth Platform → Branding**, give the app a name and your email. Under **Audience**, pick **External**.
-3. Under **Clients**, create a client of type **Web application**. Add the redirect URI the script printed: `https://<app address>/api/google/callback`.
-4. Under **Audience**, click **Publish app**, so it shows "In production". **Don't skip this.** While an app is in "Testing", Google expires its Gmail access every 7 days. No Google review is needed for family use. The first time she signs in, Google shows a "Google hasn't verified this app" page; she clicks **Advanced → Go to Next Chapter**. Tell her to expect it.
-
-### What she sees the first time
-
-1. **Sign in with Google.** Google asks to let Next Chapter "send email on your behalf" and "read your email". She allows both.
-2. A **Welcome** screen shows the app getting ready, step by step. It reads her sent emails, pulls in resumes she has emailed, learns her history and voice, and runs the first search. This takes a few minutes.
-3. **Today** then shows her matches. She can look over the career record it learned on **My Writing**, and adjust her town, travel distance, and job types in **Settings**.
-
-If she unticks the Gmail boxes, she's still signed in, and the app offers a **Connect my Gmail** button. If no resume turns up in her email, she can add one on **My Writing**.
-
-## Cost
-
-Claude is billed per use; everything else fits in free tiers. The app uses Claude Opus 5.5 (`AI_MODEL` in `wrangler.toml`). This is a rough estimate at the defaults (25 fit checks a day, auto-drafts for strong matches, one web scout per day):
-- **Fit check:** a few cents each.
-- **Full application draft:** roughly 10–20 cents.
-- **Total:** usually around **$1–2 a day** while the search is active.
-
-Her profile is prompt-cached, so it's cheap to reuse across a day's fit checks. **Settings → Most fit checks per day** caps the main cost. Check the usage page in the Anthropic console after the first week.
+`npm run setup` walks through everything and is safe to re-run:
+1. **Cloudflare login and database.** It also offers to upgrade a database from the single-user version, which means starting it fresh.
+2. **Build and deploy.** The site goes live at **https://nextchapterjobhunter.com** (`www` redirects there). If the domain isn't on your Cloudflare account yet, it explains how to add it (change the nameservers at your registrar) and publishes on a temporary workers.dev address meanwhile.
+3. **Keys.** The Claude key is typed hidden and stored as an encrypted secret. It then asks for:
+   - your email (admin) and your mom's (free account)
+   - the Google sign-in keys, printing every console step, including the homepage, privacy, terms and redirect URLs
+   - Stripe (with webhook and Connect steps), Resend, Twilio and the job APIs, all optional
 
 ## Local development
 
 ```bash
 cd job-helper/worker
-printf 'JWT_SECRET=dev-secret-0123456789abcdef\nTOKEN_ENC_KEY=dev-key-0123456789abcdef\nMOCK_AI=1\nDEV_LOGIN=1\nFRONTEND_URL=http://localhost:5173\nALLOWED_EMAILS=mom@example.com\n' > .dev.vars
+printf 'JWT_SECRET=dev-secret-0123456789abcdef\nTOKEN_ENC_KEY=dev-key-0123456789abcdef\nMOCK_AI=1\nDEV_LOGIN=1\nFRONTEND_URL=http://localhost:5173\nADMIN_EMAILS=you@example.com\nFREE_EMAILS=mom@example.com\n' > .dev.vars
 npm run db:init
 npm run dev                                    # API on :8787
 
 cd ../frontend && npm install && npm run dev   # app on :5173
 ```
 
-- `DEV_LOGIN=1` adds an email-only sign-in box to the login page, so you don't need Google keys locally. Never set it in production.
-- `MOCK_AI=1` returns canned AI answers, so you can click through without an API key.
+- `MOCK_AI=1` returns canned AI answers and still meters a small amount, so billing works locally.
+- `DEV_LOGIN=1` adds an email-only sign-in. Never use it in production.
 
-**Tests:** `cd worker && npm test`
-- Unit tests cover the follow-up schedule, screening, salary parsing, reply matching, MIME building (including header-injection protection), every job-source parser, Word export and import, and Google scopes.
-- `test/signin.integration.test.ts` runs the real Worker in Cloudflare's local runtime against a fake Google. It checks Google sign-in, the allowed-email list, helper sign-in, revoking unwanted tokens, first-run setup from Gmail, and sending an application with attachments.
+**Tests:** run `cd worker && npm test`.
+- Unit tests cover the follow-up schedule, screening, reply matching, MIME, the source parsers, Word/PDF, the morning email, Google scopes, pricing math and the help center.
+- End-to-end tests run the real Worker in Cloudflare's local runtime against a fake Google, Gmail and Stripe. They cover:
+  - sign-up with a referral code, helpers, and privacy between accounts
+  - 2× charging and the referrer's 50% share
+  - running out of credit, monthly limits, the global cap and the waitlist
+  - signed, idempotent Stripe webhooks
+  - test mode, onboarding answers, story, interview prep with a thank-you note, practice role-plays, outreach, company checks, still-open checks, offers, and the browser-helper API
+
+For the browser extension, run `node extension/test/fill.test.cjs`.

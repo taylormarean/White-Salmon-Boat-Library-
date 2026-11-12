@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { api } from '../api';
+import JobExtras from './JobExtras';
 import { Btn, ErrorBox, Fit, FIT_WORD, Loading, meta, MODE, useLoad, VoteButtons, when } from '../ui';
 
 interface JobFull {
   id: number; title: string; company: string; location: string; work_mode: string; salary: string; description: string; url: string; apply_url: string;
   posted_at: string; found_at: string; source: string; status: string; fit_score: number | null; fit_label: string | null; fit_summary: string | null;
   apply_method: string | null; application_email: string | null; vote: number | null; vote_reason: string | null;
+  company_report: string | null; still_open: number | null; checked_open_at: string | null;
   fit: { strengths: string[]; gaps: string[]; red_flags: string[] } | null;
   application: { id: number; status: string } | null;
 }
@@ -78,6 +80,8 @@ export default function JobDetail({ id }: { id: string }) {
         {j.url && <a className="btn" href={j.url} target="_blank" rel="noreferrer">Open the original posting ↗</a>}
 
       </div>
+
+      <JobExtras job={j} reload={reload} />
 
       <div className="card">
         <h2>The posting</h2>

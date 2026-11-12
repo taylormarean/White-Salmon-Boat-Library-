@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Btn, ErrorBox, Loading, useLoad, useToast, when } from '../ui';
 import type { Me } from '../App';
+import SettingsExtras from './SettingsExtras';
 
 interface Prefs {
-  name: string; email: string; phone: string; home_location: string; radius_miles: number; target_roles: string[]; exclude_keywords: string[];
+  name: string; email: string; phone: string; home_location: string; linkedin_url: string; website_url: string; attachment_format: 'pdf' | 'docx' | 'both'; radius_miles: number; target_roles: string[]; exclude_keywords: string[];
   min_salary: number | null; want_remote: boolean; want_local: boolean; wishes: string; industry_focus: string; exclude_companies: string[]; min_fit_to_recommend: number;
   sources: { remotive: boolean; remoteok: boolean; himalayas: boolean; adzuna: boolean; usajobs: boolean; web_scout: boolean; greenhouse_boards: string[]; lever_sites: string[]; rss_feeds: string[] };
   autopilot: { daily_search: boolean; daily_hour: number; max_scores_per_run: number; auto_prepare_threshold: number; auto_send_applications: boolean; auto_send_follow_ups: boolean; follow_up_days: number[]; close_after_days: number; interview_check_in_days: number; daily_digest: boolean };
@@ -14,7 +15,7 @@ interface Status { ai: boolean; mock_ai: boolean; model: string; gmail: { config
 const lines = (a: string[]) => a.join('\n');
 const unlines = (s: string) => s.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
 
-export default function Settings({ query, me }: { query: URLSearchParams; me: Me | null }) {
+export default function Settings({ query, me, reloadMe }: { query: URLSearchParams; me: Me | null; reloadMe: () => void }) {
   const prefs = useLoad<Prefs>('/prefs');
   const status = useLoad<Status>('/status');
   const activity = useLoad<{ id: number; kind: string; message: string; created_at: string }[]>('/activity');
@@ -48,6 +49,11 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
           <div><label>Phone</label><input value={p.phone} onChange={(e) => set({ phone: e.target.value })} /></div>
           <div><label>Email</label><input value={p.email} onChange={(e) => set({ email: e.target.value })} /></div>
           <div><label>Where you live <span className="hint">town and state, e.g. “White Salmon, WA”</span></label><input value={p.home_location} onChange={(e) => set({ home_location: e.target.value })} /></div>
+          <div><label>LinkedIn profile <span className="hint">optional — used on applications</span></label><input value={p.linkedin_url} onChange={(e) => set({ linkedin_url: e.target.value })} placeholder="https://www.linkedin.com/in/…" /></div>
+          <div><label>Attach my resume and letter as</label>
+            <select value={p.attachment_format} onChange={(e) => set({ attachment_format: e.target.value as Prefs['attachment_format'] })}>
+              <option value="pdf">PDF (recommended)</option><option value="docx">Word</option><option value="both">Both</option>
+            </select></div>
         </div>
       </div>
 
@@ -101,7 +107,7 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
           <p className="muted">Google isn’t set up on the server yet — whoever installed the app needs to run <code>npm run setup</code>.</p>
         ) : s.gmail.connected ? (
           <div className="row between">
-            <span>✅ Connected as <strong>{s.gmail.email}</strong>. Applications and follow-ups are sent from this address, and the app watches it for replies.</span>
+            <span>✅ Connected as <strong>{s.gmail.email}</strong>. Applications and follow-ups are sent from this address, and the app watches it for replies.{me && !me.gmail.calendar ? <> <br /><span className="small">📅 Calendar isn’t connected — reconnect to let me add interviews and suggest times you’re free.</span></> : null}</span>
             {me?.is_owner && <Btn className="ghost danger" onClick={async () => { if (confirm('Disconnect Gmail? The app will stop sending and stop noticing replies until you connect it again.')) { await api('/google/disconnect', { method: 'POST' }); status.reload(); } }}>Disconnect</Btn>}
           </div>
         ) : me && !me.is_owner ? (
@@ -190,6 +196,8 @@ export default function Settings({ query, me }: { query: URLSearchParams; me: Me
           </div>
         </div>
       )}
+
+      {me && <SettingsExtras me={me} reloadMe={reloadMe} />}
 
       <div className="section"><h2>Behind the scenes</h2></div>
       <div className="card small">

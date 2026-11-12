@@ -23,7 +23,13 @@ export function markdownToParagraphs(md: string, kind: 'resume' | 'letter'): Par
 
   const flush = () => {
     if (!buffer.length) return;
-    paras.push(new Paragraph({ children: runs(buffer.join(' '), 22), spacing: { after: kind === 'letter' ? 200 : 100, line: 276 } }));
+    if (kind === 'letter') {
+      // In a letter, line breaks inside a paragraph are deliberate ("Thanks so much,\nLinda").
+      const children = buffer.flatMap((l, i) => (i === 0 ? runs(l, 22) : [new TextRun({ break: 1 }), ...runs(l, 22)]));
+      paras.push(new Paragraph({ children, spacing: { after: 200, line: 276 } }));
+    } else {
+      paras.push(new Paragraph({ children: runs(buffer.join(' '), 22), spacing: { after: 100, line: 276 } }));
+    }
     buffer = [];
   };
 

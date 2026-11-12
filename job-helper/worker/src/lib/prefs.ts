@@ -4,6 +4,9 @@ export interface Prefs {
   name: string;
   email: string;
   phone: string;
+  linkedin_url: string;
+  website_url: string;
+  attachment_format: 'pdf' | 'docx' | 'both'; // what gets attached to emailed applications
   home_location: string;       // "White Salmon, WA"
   radius_miles: number;
   target_roles: string[];      // job titles / keywords she wants
@@ -44,6 +47,9 @@ export const DEFAULT_PREFS: Prefs = {
   name: '',
   email: '',
   phone: '',
+  linkedin_url: '',
+  website_url: '',
+  attachment_format: 'pdf',
   home_location: '',
   radius_miles: 30,
   // Starting focus: tech sales. She can change any of this in Settings.

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Next Chapter helper</title>
+  <link rel="stylesheet" href="../lib/ui.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="brand">
+    <img src="../icons/icon48.png" alt="">
+    <h1>Next Chapter helper</h1>
+  </header>
+
+  <!-- Shown until the helper is connected to her app -->
+  <main id="view-setup" class="section hidden"></main>
+
+  <!-- The everyday screen -->
+  <main id="view-main" class="section hidden">
+    <div id="loading" class="row"><div class="spinner"></div><span>Getting your applications…</span></div>
+
+    <div id="no-apps" class="hidden">
+      <h2>No applications ready yet</h2>
+      <p>When you give a job a thumbs up in Next Chapter, it writes an application for you. It will show up here.</p>
+    </div>
+
+    <div id="pick" class="hidden">
+      <label class="big" for="app">Which job is this?</label>
+      <select id="app"></select>
+      <p id="match-hint" class="help"></p>
+      <p id="open-job-wrap" class="small hidden"><a href="#" id="open-job">Open this job's application page</a></p>
+
+      <button type="button" class="btn-big" id="fill">Fill this application</button>
+      <p class="help">The helper fills in the form for you. It never presses Submit. You check the form and submit it yourself.</p>
+    </div>
+
+    <div id="working" class="box warn hidden" role="status" aria-live="polite">
+      <div class="row"><div class="spinner"></div><b>Filling in the form…</b></div>
+      <p class="small">Writing answers to the questions can take up to a minute. You can keep this window open or close it.</p>
+    </div>
+
+    <div id="error" class="box err hidden" role="alert"></div>
+
+    <div id="report" class="hidden" role="status" aria-live="polite">
+      <div class="box ok">
+        <p id="summary" class="important"></p>
+        <p class="important">Please check everything, then press their Submit button yourself.</p>
+        <p class="small"><span class="swatch g"></span>Green boxes = filled in for you<br><span class="swatch y"></span>Yellow boxes = for you to do</p>
+      </div>
+      <div id="todo-box" class="box warn hidden">
+        <b>Please do these yourself:</b>
+        <ul id="todo"></ul>
+      </div>
+      <div id="left-box" class="box warn hidden">
+        <b>Left for you (yellow boxes):</b>
+        <ul id="left"></ul>
+      </div>
+      <div id="frames-box" class="box warn hidden">
+        <b>Part of this form comes from another website,</b> so the helper couldn't reach it from here.
+        <ul id="frames"></ul>
+      </div>
+      <p id="told" class="small muted hidden">Next Chapter will ask you later whether you submitted it.</p>
+      <button type="button" class="btn-plain" id="again">Fill again</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <a href="#" id="open-app">Open Next Chapter</a>
+    <button type="button" class="linklike" id="settings">Settings</button>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

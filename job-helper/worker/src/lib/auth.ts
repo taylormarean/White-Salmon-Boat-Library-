@@ -21,9 +21,10 @@ async function hmacKey(secret: string) {
 }
 
 export interface JwtPayload {
-  sub: number;
+  sub: number;        // the person signed in
   email: string;
   name: string;
+  ws?: number;        // the workspace they're acting in (their own, or one they help with)
   purpose?: string;
   exp: number;
 }
@@ -64,7 +65,6 @@ export async function currentUser(request: Request, env: Env): Promise<JwtPayloa
   const h = request.headers.get('Authorization') ?? '';
   if (!h.startsWith('Bearer ')) return null;
   const payload = await verifyJwt(env, h.slice(7));
-  if (!payload || payload.purpose) return null; // purpose-scoped tokens (oauth state) can't log in
-  const row = await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(payload.sub).first();
-  return row ? payload : null;
+  if (!payload || payload.purpose) return null; // purpose-scoped tokens (oauth state, vote links) can't log in
+  return payload;
 }

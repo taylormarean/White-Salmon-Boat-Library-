@@ -1,7 +1,7 @@
 // Google: "Sign in with Google" (which also connects her Gmail), sending as her
 // (with attachments, threaded), reading replies, and pulling old resumes out of her mail.
 import type { Env } from '../env';
-import { getSetting, setSetting } from './db';
+import { deleteSetting, getSetting, setSetting, U } from './db';
 import { decrypt, encrypt } from './crypto';
 import { buildMime, toBase64Url, type Attachment } from './mime';
 import { b64urlDecode } from './auth';
@@ -9,46 +9,40 @@ import { htmlToText } from './text';
 
 const IDENTITY = ['openid', 'email', 'profile'];
 const GMAIL = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly'];
+// Interviews go on her calendar, and replies offer times she's actually free.
+const CALENDAR = ['https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/calendar.freebusy'];
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 /**
- * owner  — the job seeker: identity + Gmail in one consent screen.
- * helper — family member helping out: identity only (their Gmail is never touched).
- * connect — owner re-connecting Gmail from Settings (e.g. she unticked a box the first time).
+ * owner   — a job seeker signing in: identity + Gmail + Calendar in one consent screen.
+ * helper  — someone helping a job seeker: identity only (their own Gmail is never touched).
+ * connect — re-connecting Gmail/Calendar from Settings (e.g. a box was unticked the first time).
  */
 export type AuthMode = 'owner' | 'helper' | 'connect';
 
-interface StoredTokens { refresh: string; email: string; connected_at: string } // refresh is encrypted
+interface StoredTokens { refresh: string; email: string; connected_at: string; calendar?: boolean } // refresh is encrypted
 
 export function googleConfigured(env: Env): boolean {
   return !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET;
 }
 
-/** Lower-cased allowlist. The first address is the job seeker; the rest are helpers. */
-export function allowedEmails(env: Env): string[] {
-  return (env.ALLOWED_EMAILS ?? '').split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
-}
-export function ownerEmail(env: Env): string | null {
-  return allowedEmails(env)[0] ?? null;
-}
 
 export function redirectUri(origin: string): string {
   return `${origin.replace(/\/$/, '')}/api/google/callback`;
 }
 
-export function authUrl(env: Env, origin: string, state: string, mode: AuthMode): string {
+export function authUrl(env: Env, origin: string, state: string, mode: AuthMode, loginHint?: string | null): string {
   const p = new URLSearchParams({
     client_id: env.GOOGLE_CLIENT_ID!,
     redirect_uri: redirectUri(origin),
     response_type: 'code',
-    scope: (mode === 'helper' ? IDENTITY : [...IDENTITY, ...GMAIL]).join(' '),
+    scope: (mode === 'helper' ? IDENTITY : [...IDENTITY, ...GMAIL, ...CALENDAR]).join(' '),
     access_type: mode === 'helper' ? 'online' : 'offline',
     prompt: mode === 'helper' ? 'select_account' : 'consent select_account',
     include_granted_scopes: 'true',
     state,
   });
-  const owner = ownerEmail(env);
-  if (mode !== 'helper' && owner) p.set('login_hint', owner);
+  if (loginHint) p.set('login_hint', loginHint);
   return `https://accounts.google.com/o/oauth2/v2/auth?${p}`;
 }
 
@@ -70,6 +64,7 @@ export interface GoogleLogin {
   name: string;
   verified: boolean;
   gmailGranted: boolean;
+  calendarGranted: boolean;
   tokens: TokenResponse;
 }
 
@@ -84,15 +79,16 @@ export async function exchangeCode(env: Env, origin: string, code: string): Prom
     name: info.name ?? info.given_name ?? '',
     verified: info.email_verified !== false,
     gmailGranted: GMAIL.every((s) => granted.includes(s)),
+    calendarGranted: CALENDAR.every((s) => granted.includes(s)),
     tokens,
   };
 }
 
-/** Save the owner's Gmail access (refresh token encrypted at rest). */
+/** Save this account's Gmail (and Calendar) access — refresh token encrypted at rest. */
 export async function storeGmail(env: Env, login: GoogleLogin): Promise<boolean> {
   if (!login.gmailGranted || !login.tokens.refresh_token) return false;
-  await setSetting(env, 'google', { refresh: await encrypt(env, login.tokens.refresh_token), email: login.email, connected_at: new Date().toISOString() } satisfies StoredTokens);
-  cachedToken = { token: login.tokens.access_token, exp: Date.now() + (login.tokens.expires_in - 60) * 1000 };
+  await setSetting(env, 'google', { refresh: await encrypt(env, login.tokens.refresh_token), email: login.email, connected_at: new Date().toISOString(), calendar: login.calendarGranted } satisfies StoredTokens);
+  tokenCache.set(U(env), { token: login.tokens.access_token, exp: Date.now() + (login.tokens.expires_in - 60) * 1000 });
   return true;
 }
 
@@ -101,27 +97,28 @@ export async function revokeToken(token: string): Promise<void> {
   await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, { method: 'POST' }).catch(() => {});
 }
 
-export async function gmailStatus(env: Env): Promise<{ configured: boolean; connected: boolean; email: string | null }> {
+export async function gmailStatus(env: Env): Promise<{ configured: boolean; connected: boolean; email: string | null; calendar: boolean }> {
   const g = await getSetting<StoredTokens>(env, 'google');
-  return { configured: googleConfigured(env), connected: !!g, email: g?.email ?? null };
+  return { configured: googleConfigured(env), connected: !!g, email: g?.email ?? null, calendar: !!g?.calendar };
 }
 
 export async function disconnectGmail(env: Env): Promise<void> {
   const g = await getSetting<StoredTokens>(env, 'google');
   if (g) await revokeToken(await decrypt(env, g.refresh)).catch(() => {});
-  await env.DB.prepare("DELETE FROM settings WHERE key = 'google'").run();
-  cachedToken = null;
+  await deleteSetting(env, 'google');
+  tokenCache.delete(U(env));
 }
 
-let cachedToken: { token: string; exp: number } | null = null;
+const tokenCache = new Map<number, { token: string; exp: number }>(); // per account, per isolate
 
-async function accessToken(env: Env): Promise<string> {
-  if (cachedToken && cachedToken.exp > Date.now()) return cachedToken.token;
+export async function accessToken(env: Env): Promise<string> {
+  const cached = tokenCache.get(U(env));
+  if (cached && cached.exp > Date.now()) return cached.token;
   const g = await getSetting<StoredTokens>(env, 'google');
   if (!g) throw new Error('Gmail is not connected.');
   try {
     const t = await tokenRequest(env, { refresh_token: await decrypt(env, g.refresh), grant_type: 'refresh_token' });
-    cachedToken = { token: t.access_token, exp: Date.now() + (t.expires_in - 60) * 1000 };
+    tokenCache.set(U(env), { token: t.access_token, exp: Date.now() + (t.expires_in - 60) * 1000 });
     return t.access_token;
   } catch (e) {
     console.error('Gmail token refresh failed', e); // details for `wrangler tail`; she gets plain words

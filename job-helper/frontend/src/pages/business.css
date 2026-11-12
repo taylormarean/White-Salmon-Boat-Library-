@@ -1,0 +1,83 @@
+/* Billing, Referrals and Admin pages. Everything here is prefixed `biz-` so it can't collide with styles.css. */
+
+/* big headline numbers */
+.biz-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.biz-hero .card { margin: 0; }
+.biz-label { font-size: .9rem; color: var(--muted); font-weight: 600; }
+.biz-big { font-size: 2.6rem; font-weight: 800; line-height: 1.1; margin: .2rem 0 .3rem; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.biz-big.low { color: var(--bad); }
+.biz-big.good, .biz-mid.good { color: var(--good); }
+.biz-mid { font-size: 1.6rem; font-weight: 750; line-height: 1.2; margin: .2rem 0; font-variant-numeric: tabular-nums; }
+.card.biz-free { background: var(--good-soft); border-color: #b9dcc7; }
+.card.biz-free h2 { color: var(--good); }
+.card.biz-thanks { background: var(--good-soft); border-color: #b9dcc7; }
+.card.biz-low { background: var(--bad-soft); border-color: #efc1bc; }
+
+/* credit pack buttons */
+.biz-packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .75rem; margin: .75rem 0 .25rem; }
+.biz-packs button { justify-content: center; font-size: 1.35rem; font-weight: 800; min-height: 72px; flex-direction: column; gap: 0; }
+.biz-packs button .small { font-weight: 500; opacity: .85; }
+
+/* steps (how it works) */
+.biz-steps { margin: .25rem 0 0; padding-left: 1.3rem; }
+.biz-steps li { margin: .35rem 0; }
+
+/* plain tables */
+.biz-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.biz-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.biz-table th, .biz-table td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.biz-table th { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.biz-table tr:last-child td { border-bottom: 0; }
+.biz-table td.num, .biz-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.biz-table tfoot td { font-weight: 750; border-top: 2px solid var(--line); border-bottom: 0; }
+
+/* referral link */
+.biz-link { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
+.biz-link input { flex: 1 1 260px; font-size: 1.05rem; font-weight: 600; background: #fbfaf7; }
+
+/* progress bar */
+.biz-bar { height: 14px; background: #ece7dc; border-radius: 999px; overflow: hidden; margin: .5rem 0 .35rem; }
+.biz-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; transition: width .4s; }
+.biz-bar.warn > span { background: #d18b1f; }
+.biz-bar.over > span { background: var(--bad); }
+
+/* admin: denser KPI tiles */
+.biz-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.biz-kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
+.biz-kpi .biz-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+.biz-kpi .v { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.25; margin-top: .1rem; }
+.biz-kpi .sub { font-size: .8rem; color: var(--muted); }
+.biz-kpi.pos .v { color: var(--good); }
+.biz-kpi.neg .v { color: var(--bad); }
+.biz-kpi.hl { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+
+.biz-admin .biz-table { font-size: .85rem; }
+.biz-admin .biz-table td { padding: .45rem .5rem; }
+.biz-admin .biz-table tr.waiting td { background: var(--warn-soft); }
+.biz-admin .biz-table tr.suspended td { color: var(--muted); }
+.biz-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; width: 190px; }
+.biz-actions button { justify-content: center; white-space: nowrap; }
+.biz-badges { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; }
+.biz-admin .biz-table td.who { min-width: 170px; max-width: 240px; overflow-wrap: anywhere; }
+.biz-table th .sub { font-size: .7rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.biz-actions button { min-height: 32px; padding: .2rem .55rem; font-size: .8rem; border-radius: 8px; }
+.biz-search { max-width: 360px; }
+.badge.biz-wait { background: var(--warn-soft); color: var(--warn); }
+.badge.biz-free-b { background: var(--good-soft); color: var(--good); }
+.badge.biz-paid-b { background: var(--brand-soft); color: var(--brand); }
+.badge.biz-susp { background: var(--bad-soft); color: var(--bad); }
+.badge.biz-admin-b { background: #e8e4f6; color: #4b3d8f; }
+
+.biz-inline { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.biz-inline input { width: 9rem; }
+.biz-money-input { position: relative; display: inline-flex; align-items: center; }
+.biz-money-input::before { content: "$"; position: absolute; left: .75rem; color: var(--muted); font-weight: 600; pointer-events: none; }
+.biz-money-input input { padding-left: 1.6rem; }
+
+@media (max-width: 560px) {
+  .biz-table { font-size: .88rem; }
+  .biz-table th, .biz-table td { padding: .45rem .35rem; }
+  .biz-table th { font-size: .72rem; }
+  .card.biz-table-wrap { padding: .6rem .7rem; }
+  .biz-big { font-size: 2.2rem; }
+}

@@ -1,13 +1,19 @@
 import type { Env } from './env';
 import { body, dispatch, error, HttpError, json, type Route } from './lib/http';
-import { signJwt, verifyJwt, type JwtPayload } from './lib/auth';
-import { addEvent, getPrefs, getSetting, getVoice, logActivity, setSetting, type AppRow, type JobRow, type OutboxRow } from './lib/db';
+import { signJwt, verifyJwt } from './lib/auth';
+import { addEvent, asUser, getConfig, getPrefs, getSetting, getVoice, logActivity, setConfig, setSetting, U, type AppRow, type JobRow, type OutboxRow } from './lib/db';
 import { mergePrefs, type Prefs } from './lib/prefs';
 import { aiConfigured, aiJSON } from './lib/ai';
 import { EXTRACT_JOB_INSTRUCTIONS, EXTRACT_JOB_SCHEMA, type ExtractJobResult } from './lib/prompts';
-import {
-  allowedEmails, authUrl, disconnectGmail, exchangeCode, gmailStatus, googleConfigured, ownerEmail, revokeToken, storeGmail, type AuthMode,
-} from './lib/gmail';
+import { authUrl, disconnectGmail, exchangeCode, gmailStatus, googleConfigured, revokeToken, storeGmail, type AuthMode } from './lib/gmail';
+import { canActIn, getUser, signIn, signupOpen, workspacesFor, type UserRow } from './accounts';
+import { openAlerts, testModeUntil } from './alerts';
+import { businessRoutes } from './business';
+import { adminRoutes } from './admin';
+import { getInsights } from './insights';
+import { careerRoutes } from './career';
+import { handleStripeWebhook, stripeConfigured } from './stripe';
+import { resolveAlerts } from './alerts';
 import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
 import { extractApplicationEmail, htmlToText } from './lib/text';
 import {
@@ -34,12 +40,12 @@ function str(v: unknown, max = 100_000): string | undefined {
 async function rememberEdit(env: Env, kind: string, before: string | null, after: string | undefined): Promise<void> {
   if (!before || after === undefined || before === after) return;
   if (Math.abs(before.length - after.length) < 15 && before.replace(/\s+/g, ' ') === after.replace(/\s+/g, ' ')) return;
-  await env.DB.prepare('INSERT INTO voice_examples (kind, before_text, after_text) VALUES (?, ?, ?)').bind(kind, before.slice(0, 20000), after.slice(0, 20000)).run();
-  await env.DB.prepare('DELETE FROM voice_examples WHERE id NOT IN (SELECT id FROM voice_examples ORDER BY id DESC LIMIT 40)').run();
+  await env.DB.prepare('INSERT INTO voice_examples (user_id, kind, before_text, after_text) VALUES (?, ?, ?, ?)').bind(U(env), kind, before.slice(0, 20000), after.slice(0, 20000)).run();
+  await env.DB.prepare('DELETE FROM voice_examples WHERE user_id = ? AND id NOT IN (SELECT id FROM voice_examples WHERE user_id = ? ORDER BY id DESC LIMIT 40)').bind(U(env), U(env)).run();
 }
 
 async function loadApp(env: Env, id: number) {
-  const app = await env.DB.prepare('SELECT * FROM applications WHERE id = ?').bind(id).first<AppRow>();
+  const app = await env.DB.prepare('SELECT * FROM applications WHERE id = ? AND user_id = ?').bind(id, U(env)).first<AppRow>();
   if (!app) throw new HttpError(404, 'Application not found');
   return app;
 }
@@ -48,24 +54,19 @@ async function loadApp(env: Env, id: number) {
 
 const DAY = 60 * 60 * 24;
 
-function frontUrl(env: Env, request: Request): string {
+export function frontUrl(env: Env, request: Request): string {
   return (env.FRONTEND_URL || new URL(request.url).origin).replace(/\/$/, '');
 }
 
-async function upsertUser(env: Env, email: string, name: string): Promise<{ id: number; email: string; name: string }> {
-  const row = await env.DB.prepare(
-    `INSERT INTO users (email, name, last_login_at) VALUES (?, ?, datetime('now'))
-     ON CONFLICT(email) DO UPDATE SET name = CASE WHEN excluded.name != '' THEN excluded.name ELSE users.name END, last_login_at = datetime('now')
-     RETURNING id, email, name`,
-  ).bind(email, name || email.split('@')[0]).first<{ id: number; email: string; name: string }>();
-  return row!;
-}
-
-/** First time she signs in, use her Google name and address as her application contact details. */
+/** First sign-in: use the Google name and address as application contact details. */
 async function fillPrefsFromGoogle(env: Env, name: string, email: string): Promise<void> {
   const prefs = await getPrefs(env);
   if (prefs.name && prefs.email) return;
   await setSetting(env, 'prefs', { ...prefs, name: prefs.name || name, email: prefs.email || email });
+}
+
+export async function sessionToken(env: Env, user: UserRow, ws: number = user.id): Promise<string> {
+  return signJwt(env, { sub: user.id, email: user.email, name: user.name, ws }, 30 * DAY);
 }
 
 function h(s: string): string {
@@ -85,26 +86,33 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
   if (path === '/api/health') return json({ ok: true });
 
   if (path === '/api/auth/config' && request.method === 'GET') {
-    return json({ google: googleConfigured(env), dev_login: env.DEV_LOGIN === '1', ready: allowedEmails(env).length > 0 || env.DEV_LOGIN === '1' });
+    return json({ google: googleConfigured(env), dev_login: env.DEV_LOGIN === '1', signup_open: signupOpen(env), payments: stripeConfigured(env) });
   }
 
+  // Stripe → credit purchases, refunds, payout account status. Signature-verified.
+  if (path === '/api/webhook/stripe' && request.method === 'POST') return handleStripeWebhook(request, env);
+
   // "Sign in with Google" — a plain link; the browser is redirected to Google's consent screen.
+  // ?ref=CODE carries a referral through Google and back.
   if (path === '/api/auth/google' && request.method === 'GET') {
     const front = frontUrl(env, request);
     if (!googleConfigured(env)) return Response.redirect(`${front}/#/login?error=${encodeURIComponent('Google sign-in isn’t set up yet (run npm run setup).')}`, 302);
-    const mode: AuthMode = new URL(request.url).searchParams.get('mode') === 'helper' ? 'helper' : 'owner';
-    const state = await signJwt(env, { sub: 0, email: '', name: '', purpose: `login_${mode}` }, 600);
+    const q = new URL(request.url).searchParams;
+    const mode: AuthMode = q.get('mode') === 'helper' ? 'helper' : 'owner';
+    const ref = (q.get('ref') ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+    const state = await signJwt(env, { sub: 0, email: ref, name: '', purpose: `login_${mode}` }, 600);
     return Response.redirect(authUrl(env, new URL(request.url).origin, state, mode), 302);
   }
 
   // Local development only: sign in by email without Google.
   if (path === '/api/auth/dev' && request.method === 'POST' && env.DEV_LOGIN === '1') {
-    const b = await body<{ email?: string }>(request);
+    const b = await body<{ email?: string; ref?: string }>(request);
     const email = (b.email ?? '').trim().toLowerCase();
-    const allowed = allowedEmails(env);
-    if (!email || (allowed.length && !allowed.includes(email))) return error('Not on the guest list', 403);
-    const u = await upsertUser(env, email, email.split('@')[0]);
-    return json({ token: await signJwt(env, { sub: u.id, email: u.email, name: u.name }, 30 * DAY) });
+    if (!email.includes('@')) return error('Enter an email');
+    const r = await signIn(env, email, email.split('@')[0], b.ref);
+    if (!r.ok) return error(r.message, 403);
+    if (r.user.status === 'waitlist') return error('You’re on the waitlist — we’ll email you when there’s room.', 403);
+    return json({ token: await sessionToken(env, r.user) });
   }
 
   // One-tap 👍/👎 from the morning email. GET shows a confirm page (link scanners never vote); POST records it.
@@ -114,27 +122,29 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
     const t = (form?.get('t') as string | null) ?? url.searchParams.get('t') ?? '';
     const claim = await verifyJwt(env, t);
     const m = claim?.purpose?.match(/^vote:(\d+):(-?1)$/);
-    if (!claim || !m || claim.email !== ownerEmail(env)) return votePage('This link has expired', '<p>Open the app to vote on this job.</p>', frontUrl(env, request));
+    const owner = claim ? await getUser(env, claim.sub) : null;
+    if (!claim || !m || !owner || owner.email !== claim.email) return votePage('This link has expired', '<p>Open the app to vote on this job.</p>', frontUrl(env, request));
+    const wenv = asUser(env, owner.id);
     const jobId = Number(m[1]);
     const vote = Number(m[2]) as 1 | -1;
-    const job = await env.DB.prepare('SELECT id, title, company, vote FROM jobs WHERE id = ?').bind(jobId).first<{ id: number; title: string; company: string; vote: number | null }>();
+    const job = await env.DB.prepare('SELECT id, title, company, vote FROM jobs WHERE id = ? AND user_id = ?').bind(jobId, owner.id).first<{ id: number; title: string; company: string; vote: number | null }>();
     if (!job) return votePage('That job is gone', '', frontUrl(env, request));
     const app = frontUrl(env, request);
     if (form) {
-      const res = await voteJob(env, jobId, { vote, reason: (form.get('reason') as string) || undefined, note: (form.get('note') as string) || undefined });
+      const res = await voteJob(wenv, jobId, { vote, reason: (form.get('reason') as string) || undefined, note: (form.get('note') as string) || undefined });
       const msg = vote > 0
         ? `<p>👍 Got it — you like <strong>${h(job.title)}</strong> at ${h(job.company)}. I’ll write your application and look for more like it.</p>`
         : `<p>👎 Got it — I’ll show you fewer jobs like <strong>${h(job.title)}</strong>.${res.blockedCompany ? ` And no more jobs from ${h(res.blockedCompany)}.` : ''}</p>`;
       return votePage('Thank you!', `${msg}<p><a class="b" href="${h(app)}/#/">Open Next Chapter</a></p>`, app);
     }
     const reasons = vote > 0 ? UP_REASONS : DOWN_REASONS;
-    const body = `<p>${vote > 0 ? '👍 You like' : '👎 Not for you:'} <strong>${h(job.title)}</strong> at ${h(job.company)}${job.vote ? ' <em>(you voted on this already — this will change it)</em>' : ''}</p>
+    const page = `<p>${vote > 0 ? '👍 You like' : '👎 Not for you:'} <strong>${h(job.title)}</strong> at ${h(job.company)}${job.vote ? ' <em>(you voted on this already — this will change it)</em>' : ''}</p>
       <form method="POST"><input type="hidden" name="t" value="${h(t)}">
       <p><strong>${vote > 0 ? 'What do you like about it?' : 'Why not?'}</strong> <span style="color:#5d6b70">(optional, but it helps me learn)</span></p>
       ${Object.entries(reasons).map(([k, v]) => `<label style="display:block;margin:6px 0"><input type="radio" name="reason" value="${k}"> ${h(v)}</label>`).join('')}
       <textarea name="note" rows="3" placeholder="Anything else? (optional)" style="width:100%;font:inherit;padding:8px;border-radius:8px;border:1px solid #cfc8ba;margin-top:6px"></textarea>
       <p><button class="b" type="submit">${vote > 0 ? '👍 Yes, I like it' : '👎 Not for me'}</button></p></form>`;
-    return votePage(vote > 0 ? 'Thumbs up?' : 'Thumbs down?', body, app);
+    return votePage(vote > 0 ? 'Thumbs up?' : 'Thumbs down?', page, app);
   }
 
   if (path === '/api/google/callback' && request.method === 'GET') {
@@ -151,40 +161,53 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
     try {
       const login = await exchangeCode(env, url.origin, url.searchParams.get('code') ?? '');
       const giveBack = () => revokeToken(login.tokens.refresh_token ?? login.tokens.access_token);
-      const allowed = allowedEmails(env);
-      if (!allowed.length) {
+      if (!login.verified) {
         await giveBack();
-        return fail('The app isn’t finished setting up (no ALLOWED_EMAILS). Ask whoever installed it to run npm run setup.');
+        return fail('Please use a Google account with a verified email address.');
       }
-      if (!login.verified || !allowed.includes(login.email)) {
-        await giveBack();
-        await logActivity(env, 'login_failed', login.email);
-        return fail(`${login.email} isn’t on this app’s list of people who can sign in.`);
-      }
-      const isOwner = login.email === ownerEmail(env);
 
       if (isConnect) {
-        if (!isOwner) {
+        // Re-connecting Gmail for a workspace: it must be the workspace owner's own Google account.
+        const owner = await getUser(env, state.ws ?? state.sub);
+        if (!owner || owner.email !== login.email) {
           await giveBack();
-          return fail(`Please connect ${ownerEmail(env)}’s Gmail — that’s the address applications are sent from.`);
+          return fail(`Please connect ${owner?.email ?? 'the job seeker'}’s own Gmail — that’s the address applications are sent from.`);
         }
-        if (!(await storeGmail(env, login))) return fail('Google didn’t give permission to send and read email. Please try again and leave both boxes ticked.');
-        await logActivity(env, 'gmail', `Connected Gmail ${login.email}`);
+        const wenv = asUser(env, owner.id);
+        if (!(await storeGmail(wenv, login))) return fail('Google didn’t give permission to send and read email. Please try again and leave the boxes ticked.');
+        await logActivity(wenv, 'gmail', `Connected Gmail ${login.email}`);
+        await resolveAlerts(wenv, 'gmail');
         return go('settings?gmail=connected');
       }
 
-      const user = await upsertUser(env, login.email, login.name);
+      const r = await signIn(env, login.email, login.name, state.email || null);
+      if (!r.ok) {
+        await giveBack();
+        return fail(r.message);
+      }
+      const user = r.user;
+      await setConfig(env, 'app_url', front);
+      if (user.status === 'waitlist') {
+        await giveBack();
+        return go('waitlist');
+      }
+      const wenv = asUser(env, user.id);
       let gmailOk = true;
-      if (isOwner) {
-        gmailOk = (await storeGmail(env, login)) || (await gmailStatus(env)).connected;
-        await fillPrefsFromGoogle(env, login.name, login.email);
-        if (gmailOk) await logActivity(env, 'gmail', `Signed in and connected Gmail ${login.email}`);
+      if (purpose === 'login_owner') {
+        gmailOk = (await storeGmail(wenv, login)) || (await gmailStatus(wenv)).connected;
+        await fillPrefsFromGoogle(wenv, login.name, login.email);
+        if (gmailOk) {
+          await logActivity(wenv, 'gmail', `Signed in and connected Gmail ${login.email}`);
+          await resolveAlerts(wenv, 'gmail');
+        }
       } else if (login.tokens.refresh_token || login.gmailGranted) {
         await giveBack(); // a helper's own mailbox is never used
       }
-      await setSetting(env, 'app_url', front);
-      const token = await signJwt(env, { sub: user.id, email: user.email, name: user.name }, 30 * DAY);
-      return go(`auth?token=${encodeURIComponent(token)}${gmailOk ? '' : '&gmail=missing'}`);
+      // Helpers land in the workspace of the person they help.
+      const spaces = await workspacesFor(env, user);
+      const ws = purpose === 'login_helper' && spaces.length > 1 ? spaces[1].id : user.id;
+      const token = await sessionToken(env, user, ws);
+      return go(`auth?token=${encodeURIComponent(token)}${gmailOk ? '' : '&gmail=missing'}${r.created ? '&new=1' : ''}`);
     } catch (e) {
       return fail(e instanceof Error ? e.message : 'Sign-in failed');
     }
@@ -194,15 +217,30 @@ export async function publicRoutes(request: Request, env: Env, path: string): Pr
 
 // ---------------------------------------------------------------- authenticated routes
 
-export async function privateRoutes(request: Request, env: Env, path: string, user: JwtPayload): Promise<Response | null> {
+/**
+ * `user` is the person signed in; `env.uid` is the workspace they're acting in (their own, or —
+ * for a helper — the job seeker who invited them). All personal data below is scoped to env.uid.
+ */
+export async function privateRoutes(request: Request, env: Env, path: string, user: UserRow): Promise<Response | null> {
+  const owner = (await getUser(env, U(env)))!;
   const routes: Route[] = [
     ['GET', '/api/me', async () => json({
-      user: { id: user.sub, email: user.email, name: user.name },
-      is_owner: user.email === ownerEmail(env),
-      owner_email: ownerEmail(env),
+      user: { id: user.id, email: user.email, name: user.name, is_admin: !!user.is_admin, referral_code: user.referral_code },
+      workspace: { id: owner.id, name: owner.name, email: owner.email, plan: owner.plan, balance_micro: owner.balance_micro, status: owner.status },
+      workspaces: await workspacesFor(env, user),
+      is_owner: user.id === owner.id,
+      owner_email: owner.email,
       gmail: await gmailStatus(env),
       onboarding: await getOnboarding(env),
+      test_mode: await testModeUntil(env),
+      alerts: await openAlerts(env),
     })],
+    ['POST', '/api/workspace', async (req) => {
+      const b = await body<{ id?: number }>(req);
+      const target = Number(b.id);
+      if (!(await canActIn(env, user, target))) return error('You don’t have access to that account.', 403);
+      return json({ token: await sessionToken(env, user, target) });
+    }],
     ['POST', '/api/onboard/:step', async (_r, p) => {
       if (!(ONBOARD_STEPS as readonly string[]).includes(p.step)) return error('Unknown step', 404);
       return json(await runOnboardStep(env, p.step as OnboardStep));
@@ -214,22 +252,23 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
 
     // ---- overview
     ['GET', '/api/home', async () => {
-      const q = (sql: string) => env.DB.prepare(sql).all().then((r) => r.results);
+      // Each query's WHERE starts with "<x>.user_id = ?" — the workspace id is bound first.
+      const q = (sql: string) => env.DB.prepare(sql).bind(U(env)).all().then((r) => r.results);
       const [counts, waiting, ready, matches, replies, upcoming, lastSearch] = await Promise.all([
-        q('SELECT status, COUNT(*) AS n FROM applications GROUP BY status'),
+        q('SELECT status, COUNT(*) AS n FROM applications WHERE user_id = ? GROUP BY status'),
         q(`SELECT o.*, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id
-           WHERE o.status IN ('pending','failed') ORDER BY o.id DESC LIMIT 20`),
-        q(`SELECT a.id, a.apply_method, a.ai_notes, a.updated_at, j.title, j.company, j.fit_score, j.location, j.work_mode FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'ready' ORDER BY j.fit_score DESC LIMIT 20`),
-        q(`SELECT id, title, company, location, work_mode, salary, fit_score, fit_label, fit_summary, found_at, url FROM jobs WHERE status = 'new' AND vote IS NULL AND fit_score IS NOT NULL ORDER BY fit_score DESC, found_at DESC LIMIT 30`),
-        q(`SELECT e.*, j.title, j.company FROM app_events e JOIN applications a ON a.id = e.application_id JOIN jobs j ON j.id = a.job_id WHERE e.type IN ('reply','status') ORDER BY e.id DESC LIMIT 8`),
-        q(`SELECT a.id, a.status, a.last_contact_at, a.submitted_at, a.follow_up_count, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status IN ('submitted','following_up','interviewing','offer') ORDER BY a.updated_at DESC LIMIT 20`),
+           WHERE o.user_id = ? AND o.status IN ('pending','failed') ORDER BY o.id DESC LIMIT 20`),
+        q(`SELECT a.id, a.apply_method, a.ai_notes, a.updated_at, j.title, j.company, j.fit_score, j.location, j.work_mode FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.user_id = ? AND a.status = 'ready' ORDER BY j.fit_score DESC LIMIT 20`),
+        q(`SELECT id, title, company, location, work_mode, salary, fit_score, fit_label, fit_summary, found_at, url FROM jobs WHERE user_id = ? AND status = 'new' AND vote IS NULL AND fit_score IS NOT NULL ORDER BY fit_score DESC, found_at DESC LIMIT 30`),
+        q(`SELECT e.*, j.title, j.company FROM app_events e JOIN applications a ON a.id = e.application_id JOIN jobs j ON j.id = a.job_id WHERE e.user_id = ? AND e.type IN ('reply','status') ORDER BY e.id DESC LIMIT 8`),
+        q(`SELECT a.id, a.status, a.last_contact_at, a.submitted_at, a.follow_up_count, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.user_id = ? AND a.status IN ('submitted','following_up','interviewing','offer') ORDER BY a.updated_at DESC LIMIT 20`),
         getSetting(env, 'last_search'),
       ]);
       return json({ counts, waiting, ready, to_vote: matches, replies, active: upcoming, last_search: lastSearch, last_learning: await getSetting(env, 'last_learning'), prefs: await getPrefs(env) });
     }],
     ['GET', '/api/status', async () => {
       const voice = await getVoice(env);
-      const docs = await env.DB.prepare('SELECT COUNT(*) AS n FROM documents').first<{ n: number }>();
+      const docs = await env.DB.prepare('SELECT COUNT(*) AS n FROM documents WHERE user_id = ?').bind(U(env)).first<{ n: number }>();
       return json({
         ai: aiConfigured(env), mock_ai: env.MOCK_AI === '1', model: env.AI_MODEL || 'claude-opus-5-5',
         gmail: await gmailStatus(env),
@@ -238,7 +277,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
         last_search: await getSetting(env, 'last_search'),
       });
     }],
-    ['GET', '/api/activity', async () => json((await env.DB.prepare('SELECT * FROM activity_log WHERE kind != ? ORDER BY id DESC LIMIT 100').bind('login_failed').all()).results)],
+    ['GET', '/api/activity', async () => json((await env.DB.prepare('SELECT * FROM activity_log WHERE user_id = ? AND kind != ? ORDER BY id DESC LIMIT 100').bind(U(env), 'login_failed').all()).results)],
 
     // ---- preferences
     ['GET', '/api/prefs', async () => json(await getPrefs(env))],
@@ -252,9 +291,9 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
     }],
 
     // ---- documents + voice
-    ['GET', '/api/documents', async () => json((await env.DB.prepare('SELECT id, kind, title, filename, use_for_voice, created_at, length(content) AS chars, substr(content, 1, 300) AS preview FROM documents ORDER BY created_at DESC').all()).results)],
+    ['GET', '/api/documents', async () => json((await env.DB.prepare('SELECT id, kind, title, filename, use_for_voice, created_at, length(content) AS chars, substr(content, 1, 300) AS preview FROM documents WHERE user_id = ? ORDER BY created_at DESC').bind(U(env)).all()).results)],
     ['GET', '/api/documents/:id', async (_r, p) => {
-      const d = await env.DB.prepare('SELECT * FROM documents WHERE id = ?').bind(int(p.id)).first();
+      const d = await env.DB.prepare('SELECT * FROM documents WHERE id = ? AND user_id = ?').bind(int(p.id), U(env)).first();
       return d ? json(d) : error('Not found', 404);
     }],
     ['POST', '/api/documents', async (req) => {
@@ -267,22 +306,22 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       }
       content = content.trim();
       if (!content) return error('The document is empty.');
-      const res = await env.DB.prepare('INSERT INTO documents (kind, title, content, filename, use_for_voice) VALUES (?, ?, ?, ?, ?)')
-        .bind(kind, (str(b.title, 200) || b.filename || 'Untitled').trim(), content, str(b.filename, 200) ?? null, b.use_for_voice === false ? 0 : 1).run();
+      const res = await env.DB.prepare('INSERT INTO documents (user_id, kind, title, content, filename, use_for_voice) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(U(env), kind, (str(b.title, 200) || b.filename || 'Untitled').trim(), content, str(b.filename, 200) ?? null, b.use_for_voice === false ? 0 : 1).run();
       return json({ id: res.meta.last_row_id, chars: content.length });
     }],
     ['PATCH', '/api/documents/:id', async (req, p) => {
       const b = await body<{ title?: string; kind?: string; content?: string; use_for_voice?: boolean }>(req);
-      await env.DB.prepare('UPDATE documents SET title = COALESCE(?, title), kind = COALESCE(?, kind), content = COALESCE(?, content), use_for_voice = COALESCE(?, use_for_voice) WHERE id = ?')
-        .bind(str(b.title, 200) ?? null, DOC_KINDS.includes(b.kind ?? '') ? b.kind : null, str(b.content, 200_000) ?? null, b.use_for_voice === undefined ? null : b.use_for_voice ? 1 : 0, int(p.id)).run();
+      await env.DB.prepare('UPDATE documents SET title = COALESCE(?, title), kind = COALESCE(?, kind), content = COALESCE(?, content), use_for_voice = COALESCE(?, use_for_voice) WHERE id = ? AND user_id = ?')
+        .bind(str(b.title, 200) ?? null, DOC_KINDS.includes(b.kind ?? '') ? b.kind : null, str(b.content, 200_000) ?? null, b.use_for_voice === undefined ? null : b.use_for_voice ? 1 : 0, int(p.id), U(env)).run();
       return json({ ok: true });
     }],
     ['DELETE', '/api/documents/:id', async (_r, p) => {
-      await env.DB.prepare('DELETE FROM documents WHERE id = ?').bind(int(p.id)).run();
+      await env.DB.prepare('DELETE FROM documents WHERE id = ? AND user_id = ?').bind(int(p.id), U(env)).run();
       return json({ ok: true });
     }],
     ['GET', '/api/voice', async () => {
-      const examples = await env.DB.prepare('SELECT COUNT(*) AS n FROM voice_examples').first<{ n: number }>();
+      const examples = await env.DB.prepare('SELECT COUNT(*) AS n FROM voice_examples WHERE user_id = ?').bind(U(env)).first<{ n: number }>();
       return json({ ...(await getVoice(env)), edits_learned: examples?.n ?? 0 });
     }],
     ['PUT', '/api/voice', async (req) => {
@@ -305,8 +344,8 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       const min = parseInt(u.searchParams.get('min') ?? '0', 10) || 0;
       const mode = u.searchParams.get('mode') ?? '';
       const q = (u.searchParams.get('q') ?? '').trim();
-      const where = ['1=1'];
-      const args: unknown[] = [];
+      const where = ['j.user_id = ?'];
+      const args: unknown[] = [U(env)];
       if (status !== 'all') { where.push('j.status = ?'); args.push(status); }
       if (min) { where.push('COALESCE(j.fit_score, 0) >= ?'); args.push(min); }
       if (mode === 'remote') where.push("j.work_mode = 'remote'");
@@ -317,13 +356,13 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
            (SELECT a.id FROM applications a WHERE a.job_id = j.id ORDER BY a.id DESC LIMIT 1) AS application_id
          FROM jobs j WHERE ${where.join(' AND ')} ORDER BY j.fit_score IS NULL, j.fit_score DESC, j.found_at DESC LIMIT 200`,
       ).bind(...args).all();
-      const totals = (await env.DB.prepare('SELECT status, COUNT(*) AS n FROM jobs GROUP BY status').all()).results;
+      const totals = (await env.DB.prepare('SELECT status, COUNT(*) AS n FROM jobs WHERE user_id = ? GROUP BY status').bind(U(env)).all()).results;
       return json({ jobs: results, totals });
     }],
     ['GET', '/api/jobs/:id', async (_r, p) => {
-      const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(int(p.id)).first<JobRow>();
+      const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ? AND user_id = ?').bind(int(p.id), U(env)).first<JobRow>();
       if (!job) return error('Not found', 404);
-      const app = await env.DB.prepare('SELECT id, status FROM applications WHERE job_id = ? ORDER BY id DESC LIMIT 1').bind(job.id).first();
+      const app = await env.DB.prepare('SELECT id, status FROM applications WHERE job_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1').bind(job.id, U(env)).first();
       return json({ ...job, fit: job.fit_json ? JSON.parse(job.fit_json) : null, application: app });
     }],
     ['POST', '/api/jobs', async (req) => {
@@ -331,23 +370,23 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       const text = htmlToText(str(b.text, 60_000) ?? '');
       if (text.length < 80) return error('Paste the full job posting text (title, duties, requirements).');
       const x = await aiJSON<ExtractJobResult>(env, {
-        instructions: EXTRACT_JOB_INSTRUCTIONS,
+        purpose: 'Reading a pasted job', instructions: EXTRACT_JOB_INSTRUCTIONS,
         user: `${b.url ? `Link: ${b.url}\n\n` : ''}<pasted>\n${text}\n</pasted>`,
         schema: EXTRACT_JOB_SCHEMA,
         effort: 'low',
         maxTokens: 16000,
         mock: () => ({ title: text.split('\n')[0].slice(0, 80), company: 'Pasted Company', location: '', work_mode: 'unknown', salary: '', description: text, apply_url: b.url ?? '', application_email: extractApplicationEmail(text) ?? '' }),
       });
-      const before = await env.DB.prepare('SELECT MAX(id) AS m FROM jobs').first<{ m: number | null }>();
+      const before = await env.DB.prepare('SELECT MAX(id) AS m FROM jobs WHERE user_id = ?').bind(U(env)).first<{ m: number | null }>();
       await ingestJobs(env, [{
         source: 'manual', external_id: `${b.url || ''}:${Date.now()}`, url: b.url || x.apply_url || null, apply_url: x.apply_url || null,
         title: x.title || 'Untitled job', company: x.company || 'Unknown employer', location: x.location || null, work_mode: x.work_mode,
         salary: x.salary || null, description: x.description || text, application_email: x.application_email || null,
       }]);
       // Manually added jobs skip the keyword screen — she picked it herself.
-      const job = await env.DB.prepare('SELECT id FROM jobs WHERE id > ? ORDER BY id DESC LIMIT 1').bind(before?.m ?? 0).first<{ id: number }>();
+      const job = await env.DB.prepare('SELECT id FROM jobs WHERE user_id = ? AND id > ? ORDER BY id DESC LIMIT 1').bind(U(env), before?.m ?? 0).first<{ id: number }>();
       if (!job) return error('That job is already in your list.', 409);
-      await env.DB.prepare("UPDATE jobs SET status = 'shortlisted', fit_summary = NULL WHERE id = ?").bind(job.id).run();
+      await env.DB.prepare("UPDATE jobs SET status = 'shortlisted', fit_summary = NULL WHERE id = ? AND user_id = ?").bind(job.id, U(env)).run();
       await scoreJob(env, job.id);
       return json({ id: job.id });
     }],
@@ -355,7 +394,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
     ['PATCH', '/api/jobs/:id', async (req, p) => {
       const b = await body<{ status?: string }>(req);
       if (!['new', 'shortlisted', 'dismissed'].includes(b.status ?? '')) return error('Bad status');
-      await env.DB.prepare('UPDATE jobs SET status = ? WHERE id = ?').bind(b.status, int(p.id)).run();
+      await env.DB.prepare('UPDATE jobs SET status = ? WHERE id = ? AND user_id = ?').bind(b.status, int(p.id), U(env)).run();
       return json({ ok: true });
     }],
     ['POST', '/api/search', async () => json(await runSearch(env))],
@@ -376,8 +415,8 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       return json(await learnFromFeedback(env));
     }],
     ['GET', '/api/lessons', async () => {
-      const recent = (await env.DB.prepare('SELECT id, sentiment, about, text, created_at FROM feedback ORDER BY id DESC LIMIT 20').all()).results;
-      const votes = await env.DB.prepare('SELECT SUM(vote = 1) AS up, SUM(vote = -1) AS down FROM jobs WHERE vote IS NOT NULL').first<{ up: number; down: number }>();
+      const recent = (await env.DB.prepare('SELECT id, sentiment, about, text, created_at FROM feedback WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(U(env)).all()).results;
+      const votes = await env.DB.prepare('SELECT SUM(vote = 1) AS up, SUM(vote = -1) AS down FROM jobs WHERE user_id = ? AND vote IS NOT NULL').bind(U(env)).first<{ up: number; down: number }>();
       return json({ lessons: await getLessons(env), last_learning: await getSetting(env, 'last_learning'), recent_feedback: recent, votes });
     }],
     ['PUT', '/api/lessons', async (req) => {
@@ -410,13 +449,13 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
          j.id AS job_id, j.title, j.company, j.location, j.work_mode, j.fit_score,
          (SELECT summary FROM app_events e WHERE e.application_id = a.id ORDER BY e.id DESC LIMIT 1) AS last_event,
          (SELECT COUNT(*) FROM outbox o WHERE o.application_id = a.id AND o.status = 'pending') AS waiting
-       FROM applications a JOIN jobs j ON j.id = a.job_id ORDER BY a.updated_at DESC`,
-    ).all()).results)],
+       FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.user_id = ? ORDER BY a.updated_at DESC`,
+    ).bind(U(env)).all()).results)],
     ['GET', '/api/applications/:id', async (_r, p) => {
       const app = await loadApp(env, int(p.id));
-      const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(app.job_id).first<JobRow>();
-      const events = (await env.DB.prepare('SELECT * FROM app_events WHERE application_id = ? ORDER BY id DESC').bind(app.id).all()).results;
-      const outbox = (await env.DB.prepare('SELECT * FROM outbox WHERE application_id = ? ORDER BY id DESC').bind(app.id).all()).results;
+      const job = await env.DB.prepare('SELECT * FROM jobs WHERE id = ? AND user_id = ?').bind(app.job_id, U(env)).first<JobRow>();
+      const events = (await env.DB.prepare('SELECT * FROM app_events WHERE application_id = ? AND user_id = ? ORDER BY id DESC').bind(app.id, U(env)).all()).results;
+      const outbox = (await env.DB.prepare('SELECT * FROM outbox WHERE application_id = ? AND user_id = ? ORDER BY id DESC').bind(app.id, U(env)).all()).results;
       return json({ ...app, form_answers: app.form_answers ? JSON.parse(app.form_answers) : [], job: job && { ...job, fit: job.fit_json ? JSON.parse(job.fit_json) : null }, events, outbox });
     }],
     ['PATCH', '/api/applications/:id', async (req, p) => {
@@ -432,19 +471,19 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
            email_body = COALESCE(?, email_body), contact_email = COALESCE(?, contact_email), apply_method = COALESCE(?, apply_method), notes = COALESCE(?, notes),
            form_answers = COALESCE(?, form_answers), status = COALESCE(?, status),
            closed_reason = CASE WHEN ? IN ('withdrawn','closed','rejected') THEN COALESCE(?, closed_reason) ELSE closed_reason END,
-           updated_at = datetime('now') WHERE id = ?`,
+           updated_at = datetime('now') WHERE id = ? AND user_id = ?`,
       ).bind(
         str(b.resume_md) ?? null, str(b.cover_letter_md) ?? null, str(b.email_subject, 300) ?? null, str(b.email_body) ?? null,
         b.contact_email === undefined ? null : (str(b.contact_email, 200) ?? '').trim() || null, b.apply_method ?? null, str(b.notes, 10000) ?? null,
-        b.form_answers === undefined ? null : JSON.stringify(b.form_answers), b.status ?? null, b.status ?? '', str(b.closed_reason, 500) ?? null, app.id,
+        b.form_answers === undefined ? null : JSON.stringify(b.form_answers), b.status ?? null, b.status ?? '', str(b.closed_reason, 500) ?? null, app.id, U(env),
       ).run();
       if (b.status && b.status !== app.status) {
         await addEvent(env, app.id, 'status', `Status → ${b.status.replace('_', ' ')} (changed by hand)`);
         if (['won', 'rejected', 'closed', 'withdrawn'].includes(b.status)) {
-          await env.DB.prepare("UPDATE outbox SET status = 'cancelled' WHERE application_id = ? AND status IN ('pending','approved')").bind(app.id).run();
+          await env.DB.prepare("UPDATE outbox SET status = 'cancelled' WHERE application_id = ? AND user_id = ? AND status IN ('pending','approved')").bind(app.id, U(env)).run();
         }
         if (b.status === 'interviewing') {
-          await env.DB.prepare("UPDATE applications SET follow_up_count = 0, last_contact_at = datetime('now') WHERE id = ?").bind(app.id).run();
+          await env.DB.prepare("UPDATE applications SET follow_up_count = 0, last_contact_at = datetime('now') WHERE id = ? AND user_id = ?").bind(app.id, U(env)).run();
         }
       }
       return json({ ok: true });
@@ -471,7 +510,7 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
       const b = await body<{ text?: string }>(req);
       if (!b.text?.trim()) return error('Empty note');
       await addEvent(env, app.id, 'note', b.text.trim().slice(0, 2000));
-      await env.DB.prepare("UPDATE applications SET updated_at = datetime('now') WHERE id = ?").bind(app.id).run();
+      await env.DB.prepare("UPDATE applications SET updated_at = datetime('now') WHERE id = ? AND user_id = ?").bind(app.id, U(env)).run();
       return json({ ok: true });
     }],
     ['GET', '/api/applications/:id/docx/:which', async (_r, p) => {
@@ -488,35 +527,35 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
 
     // ---- outbox (everything waiting to be sent)
     ['GET', '/api/outbox', async () => json((await env.DB.prepare(
-      `SELECT o.*, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id ORDER BY o.id DESC LIMIT 100`,
-    ).all()).results)],
+      `SELECT o.*, j.title, j.company FROM outbox o LEFT JOIN applications a ON a.id = o.application_id LEFT JOIN jobs j ON j.id = a.job_id WHERE o.user_id = ? ORDER BY o.id DESC LIMIT 100`,
+    ).bind(U(env)).all()).results)],
     ['PATCH', '/api/outbox/:id', async (req, p) => {
-      const row = await env.DB.prepare('SELECT * FROM outbox WHERE id = ?').bind(int(p.id)).first<OutboxRow>();
+      const row = await env.DB.prepare('SELECT * FROM outbox WHERE id = ? AND user_id = ?').bind(int(p.id), U(env)).first<OutboxRow>();
       if (!row) return error('Not found', 404);
       if (row.status === 'sent') return error('Already sent');
       const b = await body<{ to_email?: string; subject?: string; body?: string }>(req);
       await rememberEdit(env, 'email', row.body, str(b.body));
-      await env.DB.prepare("UPDATE outbox SET to_email = COALESCE(?, to_email), subject = COALESCE(?, subject), body = COALESCE(?, body), status = CASE WHEN status = 'failed' THEN 'pending' ELSE status END WHERE id = ?")
-        .bind(b.to_email === undefined ? null : b.to_email.trim() || null, str(b.subject, 300) ?? null, str(b.body) ?? null, row.id).run();
+      await env.DB.prepare("UPDATE outbox SET to_email = COALESCE(?, to_email), subject = COALESCE(?, subject), body = COALESCE(?, body), status = CASE WHEN status = 'failed' THEN 'pending' ELSE status END WHERE id = ? AND user_id = ?")
+        .bind(b.to_email === undefined ? null : b.to_email.trim() || null, str(b.subject, 300) ?? null, str(b.body) ?? null, row.id, U(env)).run();
       if (row.application_id && b.to_email?.trim()) {
-        await env.DB.prepare('UPDATE applications SET contact_email = COALESCE(contact_email, ?) WHERE id = ?').bind(b.to_email.trim(), row.application_id).run();
+        await env.DB.prepare('UPDATE applications SET contact_email = COALESCE(contact_email, ?) WHERE id = ? AND user_id = ?').bind(b.to_email.trim(), row.application_id, U(env)).run();
       }
       return json({ ok: true });
     }],
     ['POST', '/api/outbox/:id/approve', async (_r, p) => {
       const id = int(p.id);
-      await env.DB.prepare("UPDATE outbox SET status = 'approved', approved_by = 'her' WHERE id = ? AND status IN ('pending','failed','approved')").bind(id).run();
+      await env.DB.prepare("UPDATE outbox SET status = 'approved', approved_by = 'her' WHERE id = ? AND user_id = ? AND status IN ('pending','failed','approved')").bind(id, U(env)).run();
       return json(await sendOutboxItem(env, id));
     }],
     ['POST', '/api/outbox/:id/cancel', async (_r, p) => {
-      await env.DB.prepare("UPDATE outbox SET status = 'cancelled' WHERE id = ? AND status != 'sent'").bind(int(p.id)).run();
+      await env.DB.prepare("UPDATE outbox SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status != 'sent'").bind(int(p.id), U(env)).run();
       return json({ ok: true });
     }],
     ['POST', '/api/outbox/:id/done', async (_r, p) => {
       // She called / messaged / emailed them herself.
-      const row = await env.DB.prepare('SELECT * FROM outbox WHERE id = ?').bind(int(p.id)).first<OutboxRow>();
+      const row = await env.DB.prepare('SELECT * FROM outbox WHERE id = ? AND user_id = ?').bind(int(p.id), U(env)).first<OutboxRow>();
       if (!row) return error('Not found', 404);
-      await env.DB.prepare("UPDATE outbox SET status = 'sent', approved_by = 'her', sent_at = datetime('now'), error = 'Done by hand' WHERE id = ?").bind(row.id).run();
+      await env.DB.prepare("UPDATE outbox SET status = 'sent', approved_by = 'her', sent_at = datetime('now'), error = 'Done by hand' WHERE id = ? AND user_id = ?").bind(row.id, U(env)).run();
       if (row.application_id) await afterContact(env, await loadApp(env, row.application_id), row.kind, null);
       return json({ ok: true });
     }],
@@ -528,13 +567,18 @@ export async function privateRoutes(request: Request, env: Env, path: string, us
     // ---- Gmail
     ['GET', '/api/google/start', async (req) => {
       if (!googleConfigured(env)) return error('Google isn’t set up yet — run npm run setup.', 400);
-      const state = await signJwt(env, { sub: user.sub, email: user.email, name: user.name, purpose: 'connect' }, 600);
-      return json({ url: authUrl(env, new URL(req.url).origin, state, 'connect') });
+      // Gmail can only be connected for the workspace owner's own Google account.
+      const state = await signJwt(env, { sub: user.id, email: user.email, name: user.name, ws: owner.id, purpose: 'connect' }, 600);
+      return json({ url: authUrl(env, new URL(req.url).origin, state, 'connect', owner.email) });
     }],
     ['POST', '/api/google/disconnect', async () => {
       await disconnectGmail(env);
       return json({ ok: true });
     }],
+    ['GET', '/api/insights', async () => json(await getInsights(env))],
+    ...businessRoutes(env, user, owner, frontUrl(env, request)),
+    ...adminRoutes(env, user),
+    ...careerRoutes(env, user, owner),
   ];
   return dispatch(routes, request, path);
 }

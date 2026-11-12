@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Account Executive at Acme Corp - Test application form</title>
+  <style>
+    body { font: 15px/1.4 Arial, sans-serif; margin: 0; }
+    header { background: #223; color: #fff; padding: 10px 20px; }
+    #main { max-width: 700px; margin: 20px auto; }
+    .field { margin: 14px 0; }
+    .field > label, .field > .label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input[type=text], input[type=email], input[type=tel], input[type=url], textarea, select { width: 100%; padding: 6px; box-sizing: border-box; }
+    .drop-zone { border: 2px dashed #99a; padding: 18px; text-align: center; color: #556; }
+    .drop-zone input[type=file] { display: none; }
+    .spacer { height: 400px; }
+    footer { background: #eee; padding: 20px; margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <header>
+    <form role="search" action="/search"><input type="search" id="site-search" name="q" placeholder="Search jobs"></form>
+  </header>
+
+  <div id="main">
+    <h1>Account Executive</h1>
+    <p>Acme Corp · Remote</p>
+
+    <form id="application_form" action="/submit-should-never-happen" method="post">
+      <h2>Submit your application</h2>
+
+      <!-- label[for] -->
+      <div class="field">
+        <label for="first_name">First Name <span class="asterisk">*</span></label>
+        <input type="text" id="first_name" name="job_application[first_name]" required>
+      </div>
+
+      <!-- wrapping label -->
+      <div class="field">
+        <label>Last Name *
+          <input type="text" name="job_application[last_name]" id="ln">
+        </label>
+      </div>
+
+      <!-- aria-label only -->
+      <div class="field">
+        <input type="text" id="contact_e" name="field_17" aria-label="Email">
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" name="job_application[phone]">
+      </div>
+
+      <!-- React-style controlled input (simulated below) -->
+      <div class="field">
+        <label for="location">Location (City)</label>
+        <input type="text" id="location" name="location" data-react-controlled="location">
+      </div>
+
+      <!-- aria-labelledby -->
+      <div class="field">
+        <div class="label" id="li-label">LinkedIn Profile</div>
+        <input type="text" id="q_linkedin" name="answers[0]" aria-labelledby="li-label">
+      </div>
+
+      <!-- placeholder only, inside an open shadow root -->
+      <div class="field" id="shadow-host"></div>
+
+      <div class="field">
+        <label for="current_company">Current Company</label>
+        <input type="text" id="current_company" name="current_company">
+      </div>
+
+      <!-- already filled by her: must not be changed -->
+      <div class="field">
+        <label for="pref">Preferred First Name</label>
+        <input type="text" id="pref" name="preferred_name" value="Sue">
+      </div>
+
+      <!-- Greenhouse-style uploader: hidden file input, label only as nearby text -->
+      <div class="field">
+        <div class="label">Resume/CV *</div>
+        <div class="drop-zone">
+          Drag and drop or <a href="#">attach</a>
+          <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx,.txt,.rtf">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cover_letter">Cover Letter</label>
+        <input type="file" id="cover_letter" name="cover_letter" accept="application/pdf,.doc,.docx">
+      </div>
+
+      <div class="field">
+        <label for="q_why">Why do you want to work at Acme Corp? *</label>
+        <textarea id="q_why" name="answers[1]" rows="4" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="q_customer">Tell us about a time you turned an unhappy customer into a loyal one.</label>
+        <textarea id="q_customer" name="answers[2]" rows="4" maxlength="300"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="q_salary">What are your salary expectations?</label>
+        <input type="text" id="q_salary" name="answers[3]">
+      </div>
+
+      <div class="field">
+        <label for="q_hear">How did you hear about this job?</label>
+        <select id="q_hear" name="answers[4]">
+          <option value="">Please select</option>
+          <option>LinkedIn</option>
+          <option>Friend</option>
+          <option>Company website</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="q_auth">Are you legally authorized to work in the United States? *</label>
+        <select id="q_auth" name="answers[5]" required>
+          <option value="">--</option>
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+
+      <fieldset id="sponsor-group">
+        <legend>Will you now or in the future require sponsorship for employment visa status?</legend>
+        <label><input type="radio" name="sponsor" value="yes"> Yes</label>
+        <label><input type="radio" name="sponsor" value="no"> No</label>
+      </fieldset>
+
+      <div class="field">
+        <label for="pw">Create a password for your candidate account</label>
+        <input type="password" id="pw" name="password">
+      </div>
+
+      <div class="field">
+        <label for="dob">Date of birth</label>
+        <input type="text" id="dob" name="dob">
+      </div>
+
+      <div class="spacer"></div>
+
+      <section id="eeoc_fields">
+        <h3>U.S. Equal Employment Opportunity information</h3>
+        <p>Completion is voluntary and will not subject you to adverse treatment.</p>
+        <div class="field">
+          <label for="gender">Gender</label>
+          <select id="gender" name="eeo[gender]"><option value="">Please select</option><option>Female</option><option>Male</option><option>Decline to self-identify</option></select>
+        </div>
+        <div class="field">
+          <label for="hispanic">Are you Hispanic/Latino?</label>
+          <select id="hispanic" name="eeo[hispanic]"><option value="">Please select</option><option>Yes</option><option>No</option></select>
+        </div>
+        <div class="field">
+          <label for="veteran">Veteran Status</label>
+          <select id="veteran" name="eeo[veteran]"><option value="">Please select</option><option>I am not a protected veteran</option></select>
+        </div>
+        <div class="field">
+          <label for="disability">Disability Status</label>
+          <select id="disability" name="eeo[disability]"><option value="">Please select</option><option>Yes</option><option>No</option></select>
+        </div>
+      </section>
+
+      <div class="field">
+        <label><input type="checkbox" id="certify" name="certify" required> I certify that the information I have given is true.</label>
+      </div>
+
+      <!-- Same-origin iframe with one more question -->
+      <iframe id="extra-frame" style="width:100%;height:180px;border:1px solid #ccc" srcdoc='
+        <!doctype html><html><body style="font:15px Arial">
+          <label for="q_fit">What makes you a great fit for an inside sales role?</label><br>
+          <textarea id="q_fit" rows="4" style="width:95%"></textarea>
+        </body></html>'></iframe>
+
+      <button type="submit" id="submit_app">Submit Application</button>
+    </form>
+  </div>
+
+  <footer>
+    <form id="newsletter"><label for="nl">Get job alerts by email</label> <input type="email" id="nl" name="nl"> <button>Sign up</button></form>
+  </footer>
+
+  <script>
+    // Never let the test page actually submit or navigate.
+    window.__submitted = false;
+    window.__clicked = [];
+    document.addEventListener('submit', function (e) { window.__submitted = true; e.preventDefault(); }, true);
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (t && (t.tagName === 'BUTTON' || t.tagName === 'A' || (t.type === 'submit'))) { window.__clicked.push(t.id || t.textContent); e.preventDefault(); }
+    }, true);
+
+    // Track change events on the file inputs, like a real uploader would.
+    window.__fileChanges = {};
+    ['resume', 'cover_letter'].forEach(function (id) {
+      document.getElementById(id).addEventListener('change', function (e) {
+        window.__fileChanges[id] = (window.__fileChanges[id] || 0) + 1;
+      });
+    });
+
+    // Placeholder-only website box inside an open shadow root.
+    var host = document.getElementById('shadow-host');
+    var sr = host.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<input type="text" id="site" name="w" placeholder="Website or portfolio" style="width:100%;padding:6px;box-sizing:border-box">';
+
+    // ---- A tiny imitation of a React controlled input -----------------------
+    // React remembers the last value it saw in a "value tracker" that is
+    // installed as an own property on the element. Setting el.value = x
+    // directly updates the tracker too, so React thinks nothing changed and
+    // ignores the input event; then it re-renders the old state over it.
+    // Using the prototype's native setter bypasses the tracker, like real typing.
+    window.__reactState = {};
+    document.querySelectorAll('[data-react-controlled]').forEach(function (el) {
+      var key = el.getAttribute('data-react-controlled');
+      window.__reactState[key] = '';
+      var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      var tracker = '';
+      Object.defineProperty(el, 'value', {
+        configurable: true,
+        get: function () { return desc.get.call(this); },
+        set: function (v) { tracker = String(v); desc.set.call(this, v); }
+      });
+      function render() { desc.set.call(el, window.__reactState[key]); tracker = window.__reactState[key]; }
+      el.addEventListener('input', function () {
+        var now = desc.get.call(el);
+        if (now !== tracker) { window.__reactState[key] = now; }
+        // Controlled component: always re-render from state.
+        setTimeout(render, 0);
+      });
+      window.__reactRerender = render;
+    });
+  </script>
+</body>
+</html>
