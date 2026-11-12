@@ -418,7 +418,7 @@ export default function Landing({ onSignedIn, error }: { onSignedIn: () => void;
             <a href="/terms.html">Terms of Service</a>
             <a href={`mailto:${SUPPORT}`}>{SUPPORT}</a>
           </nav>
-          <p className="small muted">© {new Date().getFullYear()} Next Chapter. Next Chapter helps you apply; it can’t promise a job or an interview.</p>
+          <p className="small muted">© {new Date().getFullYear()} Fetchlist. Next Chapter is a Fetchlist service. Card charges appear as “FETCHLIST* NEXTCHAPTER”. Next Chapter helps you apply; it can’t promise a job or an interview.</p>
         </div>
       </footer>
     </div>
