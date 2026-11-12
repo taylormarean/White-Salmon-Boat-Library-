@@ -1,0 +1,26 @@
+{
+  "name": "next-chapter-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute next-chapter-db --local --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute next-chapter-db --remote --file=schema.sql",
+    "create-user": "node scripts/create-user.mjs",
+    "tail": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "docx": "^9.15.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261112.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.161.0"
+  }
+}
