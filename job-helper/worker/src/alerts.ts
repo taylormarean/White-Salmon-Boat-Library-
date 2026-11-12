@@ -25,6 +25,22 @@ export async function openAlerts(env: Env): Promise<{ id: number; kind: string; 
   return (await env.DB.prepare('SELECT id, kind, message, created_at FROM alerts WHERE user_id = ? AND resolved = 0 ORDER BY id DESC').bind(U(env)).all<{ id: number; kind: string; message: string; created_at: string }>()).results;
 }
 
+export const AI_DOWN_MESSAGE = 'Next Chapter’s AI is unavailable right now, so drafting and job checks are paused. The team has been told and is fixing it.';
+
+/** The Claude API key is wrong or revoked, or the Anthropic account is out of credit: only the owner can fix it. */
+export function isAiServiceDown(e: unknown): boolean {
+  const status = (e as { status?: number })?.status;
+  const msg = e instanceof Error ? e.message : String(e);
+  return status === 401 || status === 403 || /ANTHROPIC_API_KEY is not set|authentication_error|invalid x-api-key|credit balance is too low/i.test(msg);
+}
+
+function aiDownReason(msg: string): string {
+  if (/credit balance/i.test(msg)) return 'the Anthropic account is out of credit';
+  if (/not set/i.test(msg)) return 'no API key is saved';
+  if (/permission/i.test(msg)) return 'the API key lacks permission';
+  return 'the API key is invalid';
+}
+
 /** Turn a thrown error from background work into the right alert. */
 export async function alertFromError(env: Env, where: string, e: unknown): Promise<void> {
   const msg = e instanceof Error ? e.message : String(e);
@@ -37,8 +53,8 @@ export async function alertFromError(env: Env, where: string, e: unknown): Promi
     await raiseAlert(env, 'cap', 'This month’s spending limit was reached — the job search is paused until the 1st (or until the limit is raised).');
   } else if (code === 'global_cap') {
     await raiseAlert(env, 'global_cap', 'The business-wide monthly AI spending cap was reached; all AI work is paused. Raise it on the Admin page.');
-  } else if (/ANTHROPIC_API_KEY|authentication|invalid x-api-key|credit balance|billing/i.test(msg)) {
-    await raiseAlert(env, 'ai', `The Claude API is refusing requests (${msg.slice(0, 160)}). Check the API key and the credit balance at console.anthropic.com.`);
+  } else if (isAiServiceDown(e)) {
+    await raiseAlert(env, 'ai', `${AI_DOWN_MESSAGE} (For the owner: Claude rejected the request — ${aiDownReason(msg)}. Check the API key with \`npx wrangler secret put ANTHROPIC_API_KEY\` and the credit balance at console.anthropic.com.)`);
   } else {
     await logActivity(env, 'error', `${where}: ${msg}`);
   }

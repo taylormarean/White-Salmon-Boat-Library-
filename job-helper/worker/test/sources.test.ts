@@ -167,3 +167,14 @@ describe('fit-check order', () => {
     expect(rankForScoring(jobs, DEFAULT_PREFS).map((j) => j.id)).toEqual([3, 4, 2, 1]);
   });
 });
+
+describe('Claude key problems', () => {
+  it('are recognized so customers get a plain message and the owner an alert', async () => {
+    const { isAiServiceDown } = await import('../src/alerts');
+    const bad = Object.assign(new Error('401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}'), { status: 401 });
+    expect(isAiServiceDown(bad)).toBe(true);
+    expect(isAiServiceDown(new Error('400 Your credit balance is too low to access the Anthropic API.'))).toBe(true);
+    expect(isAiServiceDown(new Error('Claude ran out of room writing this — try again.'))).toBe(false);
+    expect(isAiServiceDown(Object.assign(new Error('overloaded'), { status: 529 }))).toBe(false);
+  });
+});

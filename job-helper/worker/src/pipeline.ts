@@ -21,7 +21,7 @@ import { docFilename, DOCX_MIME, markdownToDocxBase64 } from './lib/docx';
 import { fetchAllSources, type SourceReport } from './sources';
 import { addFeedback, getLessons, getTaste, learnFromFeedback, learningPending } from './learning';
 import { sendDigest } from './digest';
-import { alertFromError, notifyAlerts, raiseAlert, resolveAlerts, testModeUntil } from './alerts';
+import { AI_DOWN_MESSAGE, alertFromError, isAiServiceDown, notifyAlerts, raiseAlert, resolveAlerts, testModeUntil } from './alerts';
 import { markdownToPdfBase64, PDF_MIME, pdfFilename } from './lib/pdf';
 import { suggestTimes } from './lib/calendar';
 import { checkStillOpen, researchCompany } from './career';
@@ -662,6 +662,10 @@ export async function runOnboardStep(env: Env, step: OnboardStep): Promise<Onboa
   } catch (e) {
     ok = false;
     note = e instanceof Error ? e.message : String(e);
+    if (isAiServiceDown(e)) {
+      note = AI_DOWN_MESSAGE;
+      await alertFromError(env, `onboarding: ${step}`, e).catch(() => {});
+    }
   }
   state.steps[step] = { ok, note };
   if (step === ONBOARD_STEPS[ONBOARD_STEPS.length - 1]) state.done = true;

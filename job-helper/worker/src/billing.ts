@@ -121,6 +121,7 @@ async function bill(env: Env, purpose: string, m: Metered, opts: { free?: boolea
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(U(env), purpose, m.model, m.input, m.output, m.cacheWrite, m.cacheRead, m.searches, m.costMicro, charge).run();
   const stmts: D1PreparedStatement[] = [];
+  if (m.model !== 'serpapi') stmts.push(env.DB.prepare("UPDATE alerts SET resolved = 1 WHERE user_id = ? AND kind = 'ai' AND resolved = 0").bind(U(env)));
   if (charge) stmts.push(env.DB.prepare('UPDATE users SET balance_micro = balance_micro - ? WHERE id = ?').bind(charge, U(env)));
   const cut = user?.referred_by && charge ? referralCut(m.costMicro, charge, env) : 0;
   if (cut) {

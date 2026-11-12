@@ -10,6 +10,7 @@ import { migrate } from './lib/migrate';
 import { canActIn, getUser } from './accounts';
 import { BillingError } from './billing';
 import { extRoutes } from './ext';
+import { AI_DOWN_MESSAGE, alertFromError, isAiServiceDown } from './alerts';
 import { publicHelpRoute } from './support';
 
 export type { Env };
@@ -52,6 +53,7 @@ export default {
     }
     const help = publicHelpRoute(path, request.method);
     if (help) return withHeaders(help, origin);
+    let ws: number | null = null;
     try {
       await migrate(env);
       const pub = await publicRoutes(request, env, path);
@@ -63,7 +65,7 @@ export default {
       if (!session || !user || user.status === 'suspended') return withHeaders(error('Please sign in', 401), origin);
       if (user.status === 'waitlist') return withHeaders(error('You’re on the waitlist — we’ll email you when there’s room.', 403), origin);
       // Which workspace: their own, or one they were invited to help with (re-checked every request).
-      const ws = session.ws ?? user.id;
+      ws = session.ws ?? user.id;
       if (!(await canActIn(env, user, ws))) return withHeaders(error('Please sign in', 401), origin);
       const res = await privateRoutes(request, { ...env, uid: ws }, path, user);
       return withHeaders(res ?? error('Not found', 404), origin);
@@ -72,6 +74,11 @@ export default {
       if (e instanceof BillingError) return withHeaders(new Response(JSON.stringify({ error: e.message, billing: e.code }), { status: 402, headers: { 'Content-Type': 'application/json' } }), origin);
       const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      // A bad Claude key or an empty Anthropic account: tell the customer plainly, alert the owner.
+      if (isAiServiceDown(e)) {
+        if (ws != null) await alertFromError({ ...env, uid: ws }, 'request', e).catch(() => {});
+        return withHeaders(error(AI_DOWN_MESSAGE, 503), origin);
+      }
       // AI and Gmail problems are shown to her in plain words; anything else is a generic 500.
       const status = e instanceof AIError || /Gmail|Google|employer|recipient|draft|email/i.test(msg) ? 422 : 500;
       return withHeaders(error(status === 500 ? `Something went wrong: ${msg}` : msg, status), origin);
